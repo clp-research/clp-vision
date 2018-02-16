@@ -6,7 +6,7 @@ to json)
 '''
 
 # TODO:
-# - make notag and nocompression official arguments
+# - make notag and nocompression official arguments [DONE]
 
 from __future__ import division
 
@@ -52,11 +52,32 @@ def print_timestamped_message(message, indent=0):
 
 class TaskFunctions(object):
 
+    # == wrapper function that maps to appropriate task function ==
+    def exec_task(self, task, config, targs):
+        fn = getattr(self, 'tsk_' + task, None)
+        if fn is None:
+            print '%s is an unkown task' % task
+            sys.exit(1)
+        else:
+            fn(config, targs)
+
+    # static methods
+    @staticmethod
+    def _dumpDF(refdf, path_base, args):
+        if args.nocompression:
+            print 'writing to disk: ', path_base
+            refdf.to_json(path_base,
+                          force_ascii=False, orient='table')
+        else:
+            refdf_path = path_base + '.gz'
+            print 'writing to disk: ', refdf_path
+            refdf.to_json(refdf_path,
+                          compression='gzip',
+                          force_ascii=False, orient='table')
+
     # ======= SAIAPR ========
     #
     # task-specific options:
-    # --notag: don't run the tagger
-    # --nocompression: don't compress the output json
     #
     def tsk_saiapr(self, config, targs):
         args, unparsed_args = targs
@@ -78,7 +99,7 @@ class TaskFunctions(object):
         refdf['region_id'] = refdf['region']
         refdf['rex_id'] = refdf.index.tolist()
 
-        if '--notag' in unparsed_args:
+        if args.notag:
             refdf = refdf[['i_corpus', 'image_id', 'region_id', 'r_corpus',
                            'rex_id', 'refexp']]
         else:
@@ -86,17 +107,8 @@ class TaskFunctions(object):
             refdf = refdf[['i_corpus', 'image_id', 'region_id', 'r_corpus',
                            'rex_id', 'refexp', 'tagged']]
 
-        if '--nocompression' in unparsed_args:
-            refdf_path = args.out_dir + '/saiapr_refdf.json'
-            print 'writing to disk: ', refdf_path
-            refdf.to_json(refdf_path,
-                          force_ascii=False, orient='table')
-        else:
-            refdf_path = args.out_dir + '/saiapr_refdf.json.gz'
-            print 'writing to disk: ', refdf_path
-            refdf.to_json(refdf_path,
-                          compression='gzip',
-                          force_ascii=False, orient='table')
+        TaskFunctions._dumpDF(refdf,
+                              args.out_dir + '/saiapr_refdf.json', args)
 
         # load and write out the splits on SAIAPR as used
         #   by Berkeley group (50/50)
@@ -128,20 +140,9 @@ class TaskFunctions(object):
         with open(args.out_dir + '/saiapr_90-10_splits.json', 'w') as f:
             json.dump(saiapr_90_10_splits, f)
 
-    # == wrapper function that maps to appropriate task function ==
-    def exec_task(self, task, config, targs):
-        fn = getattr(self, 'tsk_' + task, None)
-        if fn is None:
-            print '%s is an unkown task' % task
-            sys.exit(1)
-        else:
-            fn(config, targs)
-
     # ======= RefCoco and RefCocoPlus ========
     #
     # task-specific options:
-    # --notag: don't run the tagger
-    # --nocompression: don't compress the output json
     #
     @staticmethod
     def _process_refcoco(inpath, outbase, targs):
@@ -169,7 +170,7 @@ class TaskFunctions(object):
         refcocodf_tmp['i_corpus'] = icorpus_code['mscoco']
         refcocodf_tmp['r_corpus'] = 'refcoco'
 
-        if '--notag' in unparsed_args:
+        if args.notag:
             refcoco_fin = refcocodf_tmp[['i_corpus', 'image_id', 'region_id',
                                          'r_corpus', 'rex_id',
                                          'refexp']]
@@ -179,17 +180,9 @@ class TaskFunctions(object):
                                          'r_corpus', 'rex_id',
                                          'refexp', 'tagged']]
 
-        if '--nocompression' in unparsed_args:
-            refdf_path = args.out_dir + '/' + outbase + '.json'
-            print 'writing to disk: ', refdf_path
-            refcoco_fin.to_json(refdf_path,
-                                force_ascii=False, orient='table')
-        else:
-            refdf_path = args.out_dir + '/' + outbase + '.json.gz'
-            print 'writing to disk: ', refdf_path
-            refcoco_fin.to_json(refdf_path,
-                                compression='gzip',
-                                force_ascii=False, orient='table')
+        TaskFunctions._dumpDF(refcoco_fin,
+                              args.out_dir + '/' + outbase + '.json',
+                              args)
 
         if outbase == 'refcoco':
             # write out the suggested splits from ReferIt team
@@ -226,8 +219,6 @@ class TaskFunctions(object):
     # ======= GoogleCocoRefExp ========
     #
     # task-specific options:
-    # --notag: don't run the tagger
-    # --nocompression: don't compress the output json
     #
     def tsk_grex(self, config, targs):
         args, unparsed_args = targs
@@ -270,10 +261,14 @@ class TaskFunctions(object):
         gexdf['i_corpus'] = icorpus_code['mscoco']
         gexdf['r_corpus'] = 'grex'
 
-        gexdf['tagged'] = gexdf['refexp'].apply(postag)
+        if args.notag:
+            gexdf = gexdf[['i_corpus', 'image_id', 'region_id',
+                           'r_corpus', 'rex_id', 'refexp']]
+        else:
+            gexdf['tagged'] = gexdf['refexp'].apply(postag)
 
-        gexdf = gexdf[['i_corpus', 'image_id', 'region_id',
-                       'r_corpus', 'rex_id', 'refexp', 'tagged']]
+            gexdf = gexdf[['i_corpus', 'image_id', 'region_id',
+                           'r_corpus', 'rex_id', 'refexp', 'tagged']]
 
         # write out the splits as suggested by Google team
         #   NB: The splits here contain *refexp_ids*, not image_ids!
@@ -285,17 +280,7 @@ class TaskFunctions(object):
         with open(args.out_dir + '/google_refexp_rexsplits.json', 'w') as f:
             json.dump(gexsplits, f)
 
-        if '--nocompression' in unparsed_args:
-            refdf_path = args.out_dir + '/saiapr_refdf.json'
-            print 'writing to disk: ', refdf_path
-            refdf.to_json(refdf_path,
-                          force_ascii=False, orient='table')
-        else:
-            refdf_path = args.out_dir + '/saiapr_refdf.json.gz'
-            print 'writing to disk: ', refdf_path
-            refdf.to_json(refdf_path,
-                          compression='gzip',
-                          force_ascii=False, orient='table')
+        TaskFunctions._dumpDF(gexdf, args.out_dir + '/grex_refdf.json', args)
 
 
 # ======== MAIN =========
@@ -312,15 +297,31 @@ if __name__ == '__main__':
                         where to put the resulting files.,
                         default: './PreprocOut' ''',
                         default='./PreprocOut')
+    parser.add_argument('-n', '--nocompression',
+                        help='''
+                        don't use compression when writing out DFs''',
+                        action='store_true')
+    parser.add_argument('-t', '--notag',
+                        help='''
+                        don't POS-tag the expressions''',
+                        action='store_true')
     parser.add_argument('task',
                         nargs='+',
                         help='''
-                        task(s) to do. One or more of: 'saiapr'
+                        task(s) to do. One or more of: saiapr, refcoco,
+                        refcocoplus, grex. Or: 'all' (runs all tasks)
                         ''')
     targs = parser.parse_known_args()
     args, _unparsed_args = targs
 
     tfs = TaskFunctions()
+
+    if 'all' in args.task:
+        available_tasks = [this_method.replace('tsk_', '')
+                           for this_method in dir(tfs)
+                           if this_method.startswith('tsk_')]
+        print 'I will run all of:', available_tasks
+        args.task = available_tasks
 
     config = ConfigParser.SafeConfigParser()
 
