@@ -12,18 +12,24 @@ from __future__ import division
 
 import argparse
 import re
-import numpy as np
 import datetime
 import ConfigParser
-import nltk
 import codecs
-import pandas as pd
 import json
 import cPickle as pickle
+import logging
+
+import numpy as np
+import scipy.io
+import matplotlib.pyplot as plt
+import nltk
+import pandas as pd
+
+from tqdm import tqdm
 
 import sys
 sys.path.append('../Utils')
-from utils import icorpus_code
+from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 
 
 # ========= util functions used only here  ===========
@@ -52,14 +58,20 @@ def print_timestamped_message(message, indent=0):
 
 class TaskFunctions(object):
 
+    def __init__(self, targs, config):
+        args, unparsed_args = targs
+        self.args = args
+        self.unparsed_args = unparsed_args
+        self.config = config
+
     # == wrapper function that maps to appropriate task function ==
-    def exec_task(self, task, config, targs):
+    def exec_task(self, task):
         fn = getattr(self, 'tsk_' + task, None)
         if fn is None:
             print '%s is an unkown task' % task
             sys.exit(1)
         else:
-            fn(config, targs)
+            fn()
 
     # static methods
     @staticmethod
@@ -67,20 +79,22 @@ class TaskFunctions(object):
         if args.nocompression:
             print 'writing to disk: ', path_base
             refdf.to_json(path_base,
-                          force_ascii=False, orient='table')
+                          force_ascii=False, orient='split')
         else:
             refdf_path = path_base + '.gz'
             print 'writing to disk: ', refdf_path
             refdf.to_json(refdf_path,
                           compression='gzip',
-                          force_ascii=False, orient='table')
+                          force_ascii=False, orient='split')
 
     # ======= SAIAPR ========
     #
     # task-specific options:
     #
-    def tsk_saiapr(self, config, targs):
-        args, unparsed_args = targs
+    def tsk_saiapr(self):
+        config = self.config
+        args = self.args
+        # unparsed_args = self.unparsed_args
 
         print_timestamped_message('... SAIAPR', indent=4)
 
@@ -196,8 +210,9 @@ class TaskFunctions(object):
             with open(args.out_dir + '/refcoco_splits.json', 'w') as f:
                 json.dump(refcoco_splits, f)
 
-    def tsk_refcoco(self, config, targs):
-        args, unparsed_args = targs
+    def tsk_refcoco(self):
+        config = self.config
+        targs = self.args, self.unparsed_args
 
         print_timestamped_message('... RefCoco', indent=4)
 
@@ -206,8 +221,9 @@ class TaskFunctions(object):
         TaskFunctions._process_refcoco(refcoco_path,
                                        'refcoco_refdf', targs)
 
-    def tsk_refcocoplus(self, config, targs):
-        args, unparsed_args = targs
+    def tsk_refcocoplus(self):
+        config = self.config
+        targs = self.args, self.unparsed_args
 
         print_timestamped_message('... RefCocoPlus', indent=4)
 
@@ -220,8 +236,10 @@ class TaskFunctions(object):
     #
     # task-specific options:
     #
-    def tsk_grex(self, config, targs):
-        args, unparsed_args = targs
+    def tsk_grex(self):
+        config = self.config
+        args = self.args
+        # unparsed_args = self.unparsed_args
 
         print_timestamped_message('... GoogleCOCOrex', indent=4)
 
@@ -283,6 +301,53 @@ class TaskFunctions(object):
         TaskFunctions._dumpDF(gexdf, args.out_dir + '/grex_refdf.json', args)
 
 
+    # ======= SAIAPR bounding boxes ========
+    #
+    # task-specific options:
+    #
+    def tsk_saiaprbb(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... SAIAPR Bounding Boxes', indent=4)
+
+        featmat = scipy.io.loadmat(config.get('SAIAPR', 'saiapr_featmat'))
+        X = featmat['X']
+
+        # get all the bounding boxes for SAIAPR regions
+        checked = {}
+        outrows = []
+        this_corpus = icorpus_code['saiapr']
+
+        for n, row in enumerate(tqdm(X)):
+
+            this_image_id = int(row[0])
+            this_region_id = int(row[1])
+            this_category = int(row[-1])
+            # Skip over b/w images. Test only once for each image.
+            if checked.get(this_image_id) == 'skip':
+                continue
+            elif checked.get(this_image_id) != 'checked':
+                img = plt.imread(saiapr_image_filename(config, this_image_id))
+                checked[this_image_id] = 'checked'
+                if len(img.shape) != 3:
+                    logging.info('skipping image %d' % (this_image_id))
+                    continue
+            this_bb = get_saiapr_bb(config, this_image_id, this_region_id)
+            if np.min(np.array(this_bb)) < 0:
+                logging.info('skipping bb for %d %d' %
+                             (this_image_id, this_region_id))
+                continue
+            outrows.append((this_corpus, this_image_id,
+                            this_region_id, this_bb, this_category))
+
+        bbdf_saiapr = pd.DataFrame(outrows,
+                                   columns=('i_corpus image_id ' +
+                                            'region_id bb cat').split())
+
+        self._dumpDF(bbdf_saiapr, args.out_dir + '/saiapr_bbdf.json', args)
+
+
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -307,21 +372,16 @@ if __name__ == '__main__':
                         action='store_true')
     parser.add_argument('task',
                         nargs='+',
+                        choices = ['saiapr', 'refcoco', 'refcocoplus',
+                               'grex', 'saiaprbb', 'all'],
                         help='''
-                        task(s) to do. One or more of: saiapr, refcoco,
-                        refcocoplus, grex. Or: 'all' (runs all tasks)
-                        ''')
+                        task(s) to do. Choose one or more.
+                        'all' runs all tasks.''')
+
     targs = parser.parse_known_args()
-    args, _unparsed_args = targs
+    args, unparsed_args = targs
 
-    tfs = TaskFunctions()
-
-    if 'all' in args.task:
-        available_tasks = [this_method.replace('tsk_', '')
-                           for this_method in dir(tfs)
-                           if this_method.startswith('tsk_')]
-        print 'I will run all of:', available_tasks
-        args.task = available_tasks
+    print "treated as task-specific parameters: ", unparsed_args
 
     config = ConfigParser.SafeConfigParser()
 
@@ -332,10 +392,19 @@ if __name__ == '__main__':
         print 'no config file found at %s' % (args.config_file)
         sys.exit(1)
 
+    tfs = TaskFunctions(targs, config)
+
+    if 'all' in args.task:
+        available_tasks = [this_method.replace('tsk_', '')
+                           for this_method in dir(tfs)
+                           if this_method.startswith('tsk_')]
+        print 'I will run all of:', available_tasks
+        args.task = available_tasks
+
     print_timestamped_message('starting to preprocess...')
 
     # TODO: 'all' task, runs all tsk_ functions.. look in dir(tfs)
     for task in args.task:
-        tfs.exec_task(task, config, targs)
+        tfs.exec_task(task)
 
     print_timestamped_message('... done!')
