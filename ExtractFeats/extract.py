@@ -53,7 +53,7 @@ def compute_posfeats(img, bb):
     return np.array([x1r, y1r, x2r, y2r, area, ratio, distance])
 
 
-def compute_feats(bbdf, xs, ys, batch_size=100):
+def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
     X_pos = []
     X_i = []
     ids = []
@@ -107,34 +107,36 @@ def compute_feats(bbdf, xs, ys, batch_size=100):
         # is it time to do the actual extraction on this batch
         #  and write out to disk?
         if (n+1) % batch_size == 0:
-            filename = BASETEMPLATE_TMP % (code_icorpus[this_icorpus],
-                                           EXTRACTOR,
-                                           file_counter)
-            print strftime("%Y-%m-%d %H:%M:%S")
-            print "new batch!", n, file_counter, filename
-            
-            try:
-                X_i = np.array(X_i)
-                #print X_i.shape
-                X = model.predict(preproc(X_i.astype('float64')))
+            filename = config.get('runtime', 'basetemplate_tmp') %\
+                       (code_icorpus[this_icorpus],
+                        config.get('runtime', 'model'),
+                        file_counter)
+            print_timestamped_message('new batch! %d %d %s' %
+                                      (n, file_counter, filename),
+                                      indent=4)
 
-            except ValueError as e:
-                print 'Exception! But why? Skipping this whole batch..'
-                X_i = []
-                ids = []
-                X_pos = []
-                continue
-                #raise e
+            # try:
+            #     X_i = np.array(X_i)
+            #     #print X_i.shape
+            #     X = model.predict(preproc(X_i.astype('float64')))
 
-            X_ids = np.array(ids)
-            X_pos = np.array(X_pos)
-            print X_ids.shape, X.shape, X_pos.shape
-            X_f = np.hstack([X_ids,
-                             X, 
-                             X_pos])
-            with gzip.open(filename, 'w') as f:
-               pickle.dump(X_f, f)
-            print X_f.shape
+            # except ValueError as e:
+            #     print 'Exception! But why? Skipping this whole batch..'
+            #     X_i = []
+            #     ids = []
+            #     X_pos = []
+            #     continue
+            #     #raise e
+
+            # X_ids = np.array(ids)
+            # X_pos = np.array(X_pos)
+            # print X_ids.shape, X.shape, X_pos.shape
+            # X_f = np.hstack([X_ids,
+            #                  X, 
+            #                  X_pos])
+            # with gzip.open(filename, 'w') as f:
+            #    pickle.dump(X_f, f)
+            # print X_f.shape
 
             ids = []
             X_pos = []
@@ -186,10 +188,6 @@ if __name__ == '__main__':
         print 'no config file found at %s' % (args.config_file)
         sys.exit(1)
 
-    arch, layer = args.model.split('-')
-
-    print args.bbdf, arch, layer
-
     if args.bbdf_dir:
         bbdf_dir = args.bbdf_dir
     elif config.has_option('DSGV-PATHS', 'bbdf_dir'):
@@ -203,11 +201,22 @@ if __name__ == '__main__':
         out_dir = config.get('DSGV-PATHS', 'extract_out__dir')
     else:
         out_dir = './ExtractOut'
+    config.add_section('runtime')
+
+    # FIXME:
+    # this doesn't actually work! Tries to interpolate!
+    config.set('runtime', 'basetemplate_tmp',
+               out_dir + '/Temp/%s_%s_%03d.pklz')
 
     print bbdf_dir, out_dir
 
+    # default dimensions
     xs, ys = 224, 224
-    
+
+    arch, layer = args.model.split('-')
+    print args.bbdf, arch, layer
+    config.set('runtime', 'model', args.model)
+
     # if arch == 'vgg19':
     #     from keras.applications.vgg19 import VGG19
     #     # from keras.applications.vgg19 import preprocess_input as preproc
@@ -232,4 +241,4 @@ if __name__ == '__main__':
                                 orient='split')
         print this_bbdf_path
 
-        compute_feats(bbdf, xs, ys, batch_size=args.size_batch)
+        compute_feats(config, bbdf, xs=xs, ys=ys, batch_size=args.size_batch)
