@@ -30,7 +30,7 @@ backend.set_image_data_format('channels_last')
 
 def compute_posfeats(img, bb):
     ih, iw, _ = img.shape
-    x,y,w,h = bb
+    x, y, w, h = bb
     # x1, relative
     x1r = x / iw
     # y1, relative
@@ -53,9 +53,21 @@ def compute_posfeats(img, bb):
     return np.array([x1r, y1r, x2r, y2r, area, ratio, distance])
 
 
-def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
-    basetemplate_tmp = config.get('runtime', 'out_dir') +\
-                       '/Temp/%s_%s_%03d.pklz'
+def compute_feats(config, bbdf, model, preproc,
+                  xs=224, ys=224, batch_size=100):
+
+    # N.B.: This makes the assumption that the bbdf only contains
+    #  info about a single i_corpus, at least as far as the
+    #  naming is concerned.
+    this_icorpus = bbdf.iloc[0]['i_corpus']
+    filename = config.get('runtime', 'out_dir') +\
+        '%s_%s.pklz' % (
+            code_icorpus[this_icorpus],
+            config.get('runtime', 'model'))
+    if isfile(filename):
+        print '%s exists. Will not overwrite. ABORTING.' % filename
+        return
+
     X_pos = []
     X_i = []
     ids = []
@@ -109,41 +121,33 @@ def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
         ids.append(np.array([this_icorpus, this_image_id, this_region_id]))
 
         # is it time to do the actual extraction on this batch
-        #  and write out to disk?
         if (n+1) % batch_size == 0 or n+1 == len(bbdf):
-            filename = basetemplate_tmp %\
-                       (code_icorpus[this_icorpus],
-                        config.get('runtime', 'model'),
-                        file_counter)
+            # filename = basetemplate_tmp %\
+            #            (code_icorpus[this_icorpus],
+            #             config.get('runtime', 'model'),
+            #             file_counter)
             # print_timestamped_message('new batch! %d %d %s' %
             #                           (n, file_counter, filename),
             #                           indent=4)
             print_timestamped_message('new batch! %d %d' %
                                       (file_counter, n), indent=4)
 
-            # try:
-            #     X_i = np.array(X_i)
-            #     #print X_i.shape
-            #     X = model.predict(preproc(X_i.astype('float64')))
-
-            # except ValueError as e:
-            #     print 'Exception! But why? Skipping this whole batch..'
-            #     X_i = []
-            #     ids = []
-            #     X_pos = []
-            #     continue
-            #     #raise e
+            try:
+                X_i = np.array(X_i)
+                # print X_i.shape
+                X = model.predict(preproc(X_i.astype('float64')))
+            except ValueError:
+                print 'Exception! But why? Skipping this whole batch..'
+                X_i = []
+                ids = []
+                X_pos = []
+                continue
+                # raise e
 
             X_ids = np.array(ids)
             X_pos = np.array(X_pos)
-            # print X_ids.shape, X.shape, X_pos.shape
-            X_out.append(np.hstack([X_ids, X_pos]))
-            # X_f = np.hstack([X_ids,
-            #                  X, 
-            #                  X_pos])
-            # with gzip.open(filename, 'w') as f:
-            #    pickle.dump(X_f, f)
-            # print X_f.shape
+            print X_ids.shape, X.shape, X_pos.shape
+            X_out.append(np.hstack([X_ids, X, X_pos]))
 
             ids = []
             X_pos = []
@@ -153,6 +157,7 @@ def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
     X_out = np.concatenate(X_out, axis=0)
     print X_out.shape
 
+    np.savez_compressed(filename, X_out)
 
 
 
@@ -222,12 +227,13 @@ if __name__ == '__main__':
     print args.bbdf, arch, layer
     config.set('runtime', 'model', args.model)
 
-    # if arch == 'vgg19':
-    #     from keras.applications.vgg19 import VGG19
-    #     # from keras.applications.vgg19 import preprocess_input as preproc
-    #     base_model = VGG19(weights='imagenet')
-    #     model = Model(inputs=base_model.input,
-    #                   outputs=base_model.get_layer(layer).output)
+    if arch == 'vgg19':
+        from keras.applications.vgg19 import VGG19
+        from keras.applications.vgg19 import preprocess_input as preproc
+        # from keras.applications.vgg19 import preprocess_input as preproc
+        base_model = VGG19(weights='imagenet')
+        model = Model(inputs=base_model.input,
+                      outputs=base_model.get_layer(layer).output)
 
     print_timestamped_message('starting to extract, using %s %s...' %
                               (arch, layer))
@@ -246,4 +252,5 @@ if __name__ == '__main__':
                                 orient='split')
         print this_bbdf_path
 
-        compute_feats(config, bbdf, xs=xs, ys=ys, batch_size=args.size_batch)
+        compute_feats(config, bbdf, model, preproc,
+                      xs=xs, ys=ys, batch_size=args.size_batch)
