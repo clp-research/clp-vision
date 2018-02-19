@@ -75,10 +75,10 @@ def get_image_filename(config, icorp, image_id):
     raise ValueError('Unknown corpus code')
 
 
-def get_thumbnail(config, (old_image_id, img), i_corpus, image_id, bb,
-                  resize=True,
-                  xs=224, ys=224):
-    if old_image_id != image_id:
+def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
+                   resize=True,
+                   xs=224, ys=224):
+    if prev_image_id != image_id:
         this_path = get_image_filename(config, i_corpus, image_id)
         img = plt.imread(this_path)
 

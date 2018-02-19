@@ -22,7 +22,7 @@ from keras import backend
 from tqdm import tqdm
 
 sys.path.append('../Utils')
-from utils import print_timestamped_message, code_icorpus, get_thumbnail
+from utils import print_timestamped_message, code_icorpus, get_image_part
 from utils import join_imagenet_id
 
 backend.set_image_data_format('channels_last')
@@ -54,14 +54,18 @@ def compute_posfeats(img, bb):
 
 
 def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
+    basetemplate_tmp = config.get('runtime', 'out_dir') +\
+                       '/Temp/%s_%s_%03d.pklz'
     X_pos = []
     X_i = []
     ids = []
     file_counter = 1
     prev_iid, prev_img = (None, None)
 
+    X_out = []
+
     # FIXME, for debugging only! Reduced size or starting with offset
-    bbdf = bbdf[:100]
+    bbdf = bbdf[:1000]
 
     for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
@@ -88,9 +92,9 @@ def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
             continue
 
         (prev_iid, prev_img), img_resized = \
-            get_thumbnail(config, (prev_iid, prev_img),
-                          this_icorpus, this_image_id_mod, this_bb,
-                          xs=xs, ys=ys)
+            get_image_part(config, (prev_iid, prev_img),
+                           this_icorpus, this_image_id_mod, this_bb,
+                           xs=xs, ys=ys)
 
         if len(prev_img.shape) != 3 or \
            (len(prev_img.shape) == 3 and prev_img.shape[2] != 3):
@@ -106,14 +110,16 @@ def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
 
         # is it time to do the actual extraction on this batch
         #  and write out to disk?
-        if (n+1) % batch_size == 0:
-            filename = config.get('runtime', 'basetemplate_tmp') %\
+        if (n+1) % batch_size == 0 or n+1 == len(bbdf):
+            filename = basetemplate_tmp %\
                        (code_icorpus[this_icorpus],
                         config.get('runtime', 'model'),
                         file_counter)
-            print_timestamped_message('new batch! %d %d %s' %
-                                      (n, file_counter, filename),
-                                      indent=4)
+            # print_timestamped_message('new batch! %d %d %s' %
+            #                           (n, file_counter, filename),
+            #                           indent=4)
+            print_timestamped_message('new batch! %d %d' %
+                                      (file_counter, n), indent=4)
 
             # try:
             #     X_i = np.array(X_i)
@@ -128,9 +134,10 @@ def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
             #     continue
             #     #raise e
 
-            # X_ids = np.array(ids)
-            # X_pos = np.array(X_pos)
+            X_ids = np.array(ids)
+            X_pos = np.array(X_pos)
             # print X_ids.shape, X.shape, X_pos.shape
+            X_out.append(np.hstack([X_ids, X_pos]))
             # X_f = np.hstack([X_ids,
             #                  X, 
             #                  X_pos])
@@ -143,6 +150,8 @@ def compute_feats(config, bbdf, xs=224, ys=224, batch_size=100):
             X_i = []
             file_counter += 1
     # and back to the for loop
+    X_out = np.concatenate(X_out, axis=0)
+    print X_out.shape
 
 
 
@@ -165,10 +174,9 @@ if __name__ == '__main__':
                         Where to look for the bbdf file.
                         default: '../Preproc/PreProcOut' ''')
     parser.add_argument('-s', '--size_batch',
-                        help=''',
+                        help='How many images to give to model as one batch',
                         type=int,
-                        default=100,
-                        How many images to give to model as one batch''')
+                        default=100)
     parser.add_argument('model',
                         choices=['vgg19-fc2', 'rsn50-fl1'],
                         help='''
@@ -201,12 +209,9 @@ if __name__ == '__main__':
         out_dir = config.get('DSGV-PATHS', 'extract_out__dir')
     else:
         out_dir = './ExtractOut'
-    config.add_section('runtime')
 
-    # FIXME:
-    # this doesn't actually work! Tries to interpolate!
-    config.set('runtime', 'basetemplate_tmp',
-               out_dir + '/Temp/%s_%s_%03d.pklz')
+    config.add_section('runtime')
+    config.set('runtime', 'out_dir', out_dir)
 
     print bbdf_dir, out_dir
 
