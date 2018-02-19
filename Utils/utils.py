@@ -3,6 +3,10 @@ from __future__ import division
 
 import scipy.io
 import numpy as np
+import datetime
+import matplotlib.pyplot as plt
+from PIL import Image as PImage
+
 
 icorpus_code = {
     'saiapr': 0,           # the original SAIAPR corpus; original regions
@@ -16,6 +20,11 @@ icorpus_code = {
     }
 
 code_icorpus = {item: key for key, item in icorpus_code.items()}
+
+
+def print_timestamped_message(message, indent=0):
+    now = datetime.datetime.now().strftime('%Y-%m-%d @ %H:%M:%S')
+    print ' ' * indent, '[ %s ] %s' % (now, message)
 
 
 def saiapr_basepath(image_id):
@@ -54,3 +63,37 @@ def get_saiapr_bb(config, image_id, region_id):
     x1, y1 = np.nonzero(mask)[1].min(), np.nonzero(mask)[0].min()
     x2, y2 = np.nonzero(mask)[1].max(), np.nonzero(mask)[0].max()
     return [x1, y1, x2-x1, y2-y1]
+
+
+def join_imagenet_id(image_id, region_id):
+    return 'n%08d_%d' % (image_id, region_id)
+
+
+def get_image_filename(config, icorp, image_id):
+    if 'saiapr' in code_icorpus[icorp]:
+        return saiapr_image_filename(config, image_id)
+    raise ValueError('Unknown corpus code')
+
+
+def get_thumbnail(config, (old_image_id, img), i_corpus, image_id, bb,
+                  resize=True,
+                  xs=224, ys=224):
+    if old_image_id != image_id:
+        this_path = get_image_filename(config, i_corpus, image_id)
+        img = plt.imread(this_path)
+
+    # need to clip bounding box to 0, because the google region
+    #   weirdly sometimes have negative coordinates (?!):
+    x, y, w, h = np.clip(np.array(bb), 0, np.max(img.shape))
+    w = img.shape[1]-x if x+w >= img.shape[1] else w
+    h = img.shape[0]-y if y+h >= img.shape[0] else h
+    # print 'after', x,y,w,h,
+
+    img_cropped = img[int(y):int(y+h), int(x):int(x+w)]
+    if resize:
+        pim = PImage.fromarray(img_cropped)
+        pim2 = pim.resize((xs, ys), PImage.ANTIALIAS)
+        img_resized = np.array(pim2)
+    else:
+        img_resized = img_cropped
+    return ((image_id, img), img_resized)

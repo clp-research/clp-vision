@@ -12,7 +12,6 @@ from __future__ import division
 
 import argparse
 import re
-import datetime
 import ConfigParser
 import codecs
 import json
@@ -30,6 +29,7 @@ from tqdm import tqdm
 import sys
 sys.path.append('../Utils')
 from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
+from utils import print_timestamped_message
 
 
 # ========= util functions used only here  ===========
@@ -46,11 +46,6 @@ tagger = nltk.tag.perceptron.PerceptronTagger()
 
 def postag(refexp):
     return nltk.tag._pos_tag(nltk.word_tokenize(refexp), None, tagger)
-
-
-def print_timestamped_message(message, indent=0):
-    now = datetime.datetime.now().strftime('%Y-%m-%d @ %H:%M:%S')
-    print ' ' * indent, '[ %s ] %s' % (now, message)
 
 
 # ========= the actual preproc tasks, wrapped in class  ===========
