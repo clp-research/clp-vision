@@ -61,11 +61,11 @@ def compute_feats(config, bbdf, model, preproc,
     #  naming is concerned.
     this_icorpus = bbdf.iloc[0]['i_corpus']
     filename = config.get('runtime', 'out_dir') +\
-        '%s_%s.pklz' % (
+        '/%s_%s' % (
             code_icorpus[this_icorpus],
             config.get('runtime', 'model'))
-    if isfile(filename):
-        print '%s exists. Will not overwrite. ABORTING.' % filename
+    if isfile(filename + '.npz'):
+        print '%s exists. Will not overwrite. ABORTING.' % (filename + '.npz')
         return
 
     X_pos = []
@@ -77,7 +77,7 @@ def compute_feats(config, bbdf, model, preproc,
     X_out = []
 
     # FIXME, for debugging only! Reduced size or starting with offset
-    bbdf = bbdf[:1000]
+    bbdf = bbdf[:100]
 
     for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
@@ -129,7 +129,7 @@ def compute_feats(config, bbdf, model, preproc,
             # print_timestamped_message('new batch! %d %d %s' %
             #                           (n, file_counter, filename),
             #                           indent=4)
-            print_timestamped_message('new batch! %d %d' %
+            print_timestamped_message('new batch! (%d %d) Extracting!...' %
                                       (file_counter, n), indent=4)
 
             try:
@@ -155,6 +155,8 @@ def compute_feats(config, bbdf, model, preproc,
             file_counter += 1
     # and back to the for loop
     X_out = np.concatenate(X_out, axis=0)
+
+    print_timestamped_message('Made it through! Writing out..', indent=4)
     print X_out.shape
 
     np.savez_compressed(filename, X_out)
