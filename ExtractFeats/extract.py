@@ -162,7 +162,6 @@ def compute_feats(config, bbdf, model, preproc,
     np.savez_compressed(filename, X_out)
 
 
-
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -250,6 +249,9 @@ if __name__ == '__main__':
                                 compression='gzip')
         else:
             this_bbdf_path = this_bbdf_base
+            if not isfile(this_bbdf_base):
+                print "bbdf file (%s) not found. Aborting." % (this_bbdf_path)
+                sys.exit(1)
             bbdf = pd.read_json(this_bbdf_base,
                                 orient='split')
         print this_bbdf_path

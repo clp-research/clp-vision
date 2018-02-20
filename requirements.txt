@@ -1,1 +1,2 @@
 TODO
+.. also need to find a way to automate satisfaction of requirement of certain nltk resources (averaged_perceptron_tagger and punkt).
