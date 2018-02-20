@@ -19,8 +19,6 @@ import numpy as np
 from keras.models import Model
 from keras import backend
 
-from tqdm import tqdm
-
 sys.path.append('../Utils')
 from utils import print_timestamped_message, code_icorpus, get_image_part
 from utils import join_imagenet_id
@@ -79,7 +77,7 @@ def compute_feats(config, bbdf, model, preproc,
     # FIXME, for debugging only! Reduced size or starting with offset
     bbdf = bbdf[:1000]
 
-    for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
+    for n, row in bbdf.iterrows():
         this_icorpus = row['i_corpus']
         this_image_id = row['image_id']
         this_region_id = row['region_id']
