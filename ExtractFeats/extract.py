@@ -180,7 +180,9 @@ if __name__ == '__main__':
                         Where to look for the bbdf file.
                         default: '../Preproc/PreProcOut' ''')
     parser.add_argument('-s', '--size_batch',
-                        help='How many images to give to model as one batch',
+                        help='''
+                        How many images to give to model as one batch.
+                        default: 100''',
                         type=int,
                         default=100)
     parser.add_argument('model',
