@@ -77,7 +77,7 @@ def compute_feats(config, bbdf, model, preproc,
     X_out = []
 
     # FIXME, for debugging only! Reduced size or starting with offset
-    bbdf = bbdf[:100]
+    bbdf = bbdf[:1000]
 
     for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
