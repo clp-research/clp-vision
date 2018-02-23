@@ -23,12 +23,13 @@ import scipy.io
 import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
+from itertools import chain
 
 from tqdm import tqdm
 
 import sys
 sys.path.append('../Utils')
-from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
+from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb, get_image_filename
 from utils import print_timestamped_message
 
 
@@ -342,6 +343,81 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_saiapr, args.out_dir + '/saiapr_bbdf.json', args)
 
+    # ======= MSCOCO bounding boxes ========
+    #
+    # task-specific options
+    #
+    @staticmethod
+    def _process_mscocobb(inpath, outbase, targs):
+        args, unparsed_args = targs
+
+        with open(inpath, 'r') as f:
+            mscoco = json.load(f)
+
+        cocodf = pd.DataFrame(mscoco['annotations'])
+        
+        #get refcoco image ids
+        refcoco_path = config.get('REFCOCO', 'refcoco_path')
+
+        with open(refcoco_path, 'r') as f:
+            refcoco = pickle.load(f)
+        
+        refcoco_imgs = [inst['image_id'] for inst in refcoco]
+        img_ids_full = set(refcoco_imgs) 
+
+        #save images used in refcoco
+        cocodf = cocodf[cocodf['image_id'].isin(img_ids_full)]
+
+        cocodf['i_corpus'] = icorpus_code['mscoco']
+        cocodf['bbox'] = cocodf['bbox'].apply(lambda x: [int(n) for n in x])
+
+        bbdf_mscoco = cocodf[['i_corpus', 'image_id', 'id', 'bbox', 'category_id']]
+        bbdf_mscoco.columns = ['i_corpus image_id region_id bb cat'.split()]
+
+        # check all the bounding boxes for MSCOCO  regions
+        checked = {}
+        outrows = []
+        this_corpus = icorpus_code['mscoco']
+        
+        for n, row in tqdm(bbdf_mscoco.iterrows()):
+
+            this_image_id = int(row['image_id'])
+            this_region_id = row['region_id']
+            this_category = row['cat']
+            
+            # Skip over b/w images. Test only once for each image.                                                                                                                                         
+            if checked.get(this_image_id) == 'skip':
+                continue
+            elif checked.get(this_image_id) != 'checked':
+                img = plt.imread(get_image_filename(config, this_corpus, this_image_id))
+                checked[this_image_id] = 'checked'
+                if len(img.shape) != 3:
+                    logging.info('skipping image %d' % (this_image_id))
+                    continue
+            this_bb = row['bb']
+            if np.min(np.array(this_bb)) < 0:
+                logging.info('skipping bb for %d %d' %
+                             (this_image_id, this_region_id))
+                continue
+            outrows.append((this_corpus, this_image_id,
+                            this_region_id, this_bb, this_category))
+
+        bbdf_coco = pd.DataFrame(outrows,
+                                 columns=('i_corpus image_id ' +
+                                          'region_id bb cat').split())
+
+        TaskFunctions._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
+        
+    def tsk_mscocobb(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... MSCOCO Bounding Boxes', indent=4)
+
+        mscoco_path = config.get('MSCOCO', 'mscoco_path')
+        
+        TaskFunctions._process_mscocobb(mscoco_path,
+                                     'mscoco_bbdf', targs)
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -368,7 +444,7 @@ if __name__ == '__main__':
     parser.add_argument('task',
                         nargs='+',
                         choices = ['saiapr', 'refcoco', 'refcocoplus',
-                               'grex', 'saiaprbb', 'all'],
+                               'grex', 'saiaprbb', 'mscocobb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
