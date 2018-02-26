@@ -351,39 +351,33 @@ class TaskFunctions(object):
     def _process_grexcocobb(inpath, outbase, targs):
         args, unparsed_args = targs
 
-        mscoco_path = config.get('MSCOCO', 'mscoco_path')
-
-        with open(mscoco_path, 'r') as f:
-            mscoco = json.load(f)
-
         with open(inpath, 'r') as f:
-            cocorex = json.load(f)
+            gexp = json.load(f)
+        gjson_p = config.get('GREX', 'grex_base') +\
+                  '/google_refexp_val_201511_coco_aligned.json'
+        with open(gjson_p, 'r') as f:
+            gexpv = json.load(f)
+        
+        gexannv = pd.DataFrame(gexpv['annotations']).T
+        gexann = pd.DataFrame(gexp['annotations']).T
+        
+        gexann_full = pd.concat([gexann, gexannv])
 
-        cocodf = pd.DataFrame(mscoco['annotations'])
+        gexann_full['bbox'] = gexann_full['bbox'].apply(lambda x: [int(n) for n in x])
 
-        gexann = pd.DataFrame(cocorex['annotations']).T
-
-        reg_ids_full = [regid for row in gexann['refexp_ids'] for regid in row]
-
-        cocodf = cocodf[cocodf['id'].isin(reg_ids_full)]
-        print len(cocodf)
-
-        cocodf['i_corpus'] = icorpus_code['mscoco_grprops']
-        cocodf['bbox'] = cocodf['bbox'].apply(lambda x: [int(n) for n in x])
-
-        bbdf_mscoco = cocodf[['i_corpus', 'image_id', 'id', 'bbox', 'category_id']]
-        bbdf_mscoco.columns = ['i_corpus image_id region_id bb cat'.split()]
-
+        print gexann_full.head()
         # check all the bounding boxes for RexCOCO regions
         checked = {}
         outrows = []
         this_corpus = icorpus_code['mscoco_grprops']
 
-        for n, row in tqdm(bbdf_mscoco.iterrows()):
+        print len(gexann_full)
+
+        for n, row in tqdm(gexann_full.iterrows()):
 
             this_image_id = int(row['image_id'])
-            this_region_id = row['region_id']
-            this_category = row['cat']
+            this_region_id = row['annotation_id']
+            this_category = row['category_id']
 
             # Skip over b/w images. Test only once for each image.                                                                                                                                         
             if checked.get(this_image_id) == 'skip':
@@ -394,20 +388,21 @@ class TaskFunctions(object):
                 if len(img.shape) != 3:
                     logging.info('skipping image %d' % (this_image_id))
                     continue
-            this_bb = row['bb']
+            this_bb = row['bbox']
             if np.min(np.array(this_bb)) < 0:
                 logging.info('skipping bb for %d %d' %
                              (this_image_id, this_region_id))
                 continue
             outrows.append((this_corpus, this_image_id,
                             this_region_id, this_bb, this_category))
-
+        
         bbdf_coco = pd.DataFrame(outrows,
                                  columns=('i_corpus image_id ' +
                                           'region_id bb cat').split())
-        
+        print len(bbdf_coco)
         print bbdf_coco.head()
-        TaskFunctions._dumpDF(bbdf_coco, args.out_dir + outbase + '.json', args)
+        TaskFunctions._dumpDF(bbdf_coco, args.out_dir + '/' + outbase + '.json', args)
+
 
     def tsk_grexbb(self):
         config = self.config
