@@ -360,12 +360,12 @@ class TaskFunctions(object):
             refcoco = pickle.load(f)
 
         cocodf = pd.DataFrame(mscoco['annotations'])
-        
+        print cocodf.headd()
+
         #get refcoco image ids
-        
         refcoco_imgs = [inst['image_id'] for inst in refcoco]
         img_ids_full = set(refcoco_imgs) 
-
+        
         #save images used in refcoco
         cocodf = cocodf[cocodf['image_id'].isin(img_ids_full)]
 
@@ -375,7 +375,7 @@ class TaskFunctions(object):
         bbdf_mscoco = cocodf[['i_corpus', 'image_id', 'id', 'bbox', 'category_id']]
         bbdf_mscoco.columns = ['i_corpus image_id region_id bb cat'.split()]
 
-        # check all the bounding boxes for MSCOCO  regions
+        # check all the bounding boxes for MSCOCO regions
         checked = {}
         outrows = []
         this_corpus = icorpus_code['mscoco']
@@ -420,16 +420,6 @@ class TaskFunctions(object):
         TaskFunctions._process_mscocobb(refcoco_path,
                                      'mscoco_bbdf', targs)
 
-    def tsk_mscocoplusbb(self):
-        config = self.config
-        args = self.args
-
-        print_timestamped_message('... MSCOCO Plus Bounding Boxes', indent=4)
-
-        refcoco_path = config.get('REFCOCO_PLUS', 'refcocoplus_path')
-
-        TaskFunctions._process_mscocobb(refcoco_path,
-                                     'mscocoplus_bbdf', targs)
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -456,7 +446,7 @@ if __name__ == '__main__':
     parser.add_argument('task',
                         nargs='+',
                         choices = ['saiapr', 'refcoco', 'refcocoplus',
-                               'grex', 'saiaprbb', 'mscocobb', 'mscocoplusbb', 'all'],
+                               'grex', 'saiaprbb', 'mscocobb', 'grexbb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
