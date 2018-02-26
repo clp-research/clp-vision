@@ -351,16 +351,17 @@ class TaskFunctions(object):
     def _process_mscocobb(inpath, outbase, targs):
         args, unparsed_args = targs
 
+        mscoco_path = config.get('MSCOCO', 'mscoco_path')
+
+        with open(mscoco_path, 'r') as f:
+            mscoco = json.load(f)
+
         with open(inpath, 'r') as f:
             refcoco = pickle.load(f)
 
         cocodf = pd.DataFrame(mscoco['annotations'])
         
         #get refcoco image ids
-        mscoco_path = config.get('MSCOCO', 'mscoco_path')
-
-        with open(mscoco_path, 'r') as f:
-            mscoco = json.load(f)
         
         refcoco_imgs = [inst['image_id'] for inst in refcoco]
         img_ids_full = set(refcoco_imgs) 
@@ -425,7 +426,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('... MSCOCO Plus Bounding Boxes', indent=4)
 
-        refcoco_path = config.get('REFCOCO', 'refcocoplus_path')
+        refcoco_path = config.get('REFCOCO_PLUS', 'refcocoplus_path')
 
         TaskFunctions._process_mscocobb(refcoco_path,
                                      'mscocoplus_bbdf', targs)
