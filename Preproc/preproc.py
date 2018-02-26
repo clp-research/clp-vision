@@ -352,15 +352,15 @@ class TaskFunctions(object):
         args, unparsed_args = targs
 
         with open(inpath, 'r') as f:
-            mscoco = json.load(f)
+            refcoco = pickle.load(f)
 
         cocodf = pd.DataFrame(mscoco['annotations'])
         
         #get refcoco image ids
-        refcoco_path = config.get('REFCOCO', 'refcoco_path')
+        mscoco_path = config.get('MSCOCO', 'mscoco_path')
 
-        with open(refcoco_path, 'r') as f:
-            refcoco = pickle.load(f)
+        with open(mscoco_path, 'r') as f:
+            mscoco = json.load(f)
         
         refcoco_imgs = [inst['image_id'] for inst in refcoco]
         img_ids_full = set(refcoco_imgs) 
@@ -406,7 +406,7 @@ class TaskFunctions(object):
                                  columns=('i_corpus image_id ' +
                                           'region_id bb cat').split())
 
-        TaskFunctions._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
+        TaskFunctions._dumpDF(bbdf_coco, args.out_dir + outbase + '.json', args)
         
     def tsk_mscocobb(self):
         config = self.config
@@ -414,10 +414,21 @@ class TaskFunctions(object):
 
         print_timestamped_message('... MSCOCO Bounding Boxes', indent=4)
 
-        mscoco_path = config.get('MSCOCO', 'mscoco_path')
+        refcoco_path = config.get('REFCOCO', 'refcoco_path')
         
-        TaskFunctions._process_mscocobb(mscoco_path,
+        TaskFunctions._process_mscocobb(refcoco_path,
                                      'mscoco_bbdf', targs)
+
+    def tsk_mscocoplusbb(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... MSCOCO Plus Bounding Boxes', indent=4)
+
+        refcoco_path = config.get('REFCOCO', 'refcocoplus_path')
+
+        TaskFunctions._process_mscocobb(refcoco_path,
+                                     'mscocoplus_bbdf', targs)
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -444,7 +455,7 @@ if __name__ == '__main__':
     parser.add_argument('task',
                         nargs='+',
                         choices = ['saiapr', 'refcoco', 'refcocoplus',
-                               'grex', 'saiaprbb', 'mscocobb', 'all'],
+                               'grex', 'saiaprbb', 'mscocobb', 'mscocoplusbb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
