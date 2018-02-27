@@ -23,7 +23,6 @@ import scipy.io
 import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
-from itertools import chain
 
 from tqdm import tqdm
 
@@ -364,8 +363,8 @@ class TaskFunctions(object):
 
         #get refcoco image ids
         refcoco_imgs = [inst['image_id'] for inst in refcoco]
-        img_ids_full = set(refcoco_imgs) 
-        
+        img_ids_full = set(refcoco_imgs)
+
         #save images used in refcoco
         cocodf = cocodf[cocodf['image_id'].isin(img_ids_full)]
 
@@ -379,14 +378,14 @@ class TaskFunctions(object):
         checked = {}
         outrows = []
         this_corpus = icorpus_code['mscoco']
-        
+
         for n, row in tqdm(bbdf_mscoco.iterrows()):
 
             this_image_id = int(row['image_id'])
             this_region_id = row['region_id']
             this_category = row['cat']
-            
-            # Skip over b/w images. Test only once for each image.                                                                                                                                         
+
+            # Skip over b/w images. Test only once for each image.
             if checked.get(this_image_id) == 'skip':
                 continue
             elif checked.get(this_image_id) != 'checked':
@@ -408,7 +407,7 @@ class TaskFunctions(object):
                                           'region_id bb cat').split())
 
         TaskFunctions._dumpDF(bbdf_coco, args.out_dir + outbase + '.json', args)
-        
+
     def tsk_mscocobb(self):
         config = self.config
         args = self.args
@@ -416,7 +415,7 @@ class TaskFunctions(object):
         print_timestamped_message('... MSCOCO Bounding Boxes', indent=4)
 
         refcoco_path = config.get('REFCOCO', 'refcoco_path')
-        
+
         TaskFunctions._process_mscocobb(refcoco_path,
                                      'mscoco_bbdf', targs)
 
