@@ -346,18 +346,22 @@ class TaskFunctions(object):
     #
     # task-specific options
     #
-    @staticmethod
-    def _process_grexcocobb(inpath, outbase, targs):
-        args, unparsed_args = targs
+    def tsk_grexbb(self):
+        config = self.config
+        args = self.args
 
-        with open(inpath, 'r') as f:
-            gexp = json.load(f)
+        print_timestamped_message('... GoogleCOCOrex Bounding Boxes', indent=4)
 
-        gjson_p = config.get('GREX', 'grex_base') +\
+        grex_path = config.get('GREX', 'grex_base') + \
+                               '/google_refexp_train_201511_coco_aligned.json'
+        gjson_path = config.get('GREX', 'grex_base') +\
                   '/google_refexp_val_201511_coco_aligned.json'
 
-        with open(gjson_p, 'r') as f:
+        with open(grex_path, 'r') as f:
+            gexp = json.load(f)
+        with open(gjson_path, 'r') as f:
             gexpv = json.load(f)
+
         gexannv = pd.DataFrame(gexpv['annotations']).T
         gexann = pd.DataFrame(gexp['annotations']).T
 
@@ -396,20 +400,8 @@ class TaskFunctions(object):
                                  columns=('i_corpus image_id ' +
                                           'region_id bb cat').split())
 
-        TaskFunctions._dumpDF(bbdf_coco, args.out_dir + '/' + outbase + '.json', args)
+        self._dumpDF(bbdf_coco, args.out_dir + '/grex_bbdf.json', args)
 
-
-    def tsk_grexbb(self):
-        config = self.config
-        args = self.args
-
-        print_timestamped_message('... GoogleCOCOrex Bounding Boxes', indent=4)
-
-        grex_path = config.get('GREX', 'grex_base') +\
-                    '/google_refexp_train_201511_coco_aligned.json'
-
-        TaskFunctions._process_grexcocobb(grex_path,
-                                          'grex_bbdf', targs)
 
 # ======== MAIN =========
 if __name__ == '__main__':
