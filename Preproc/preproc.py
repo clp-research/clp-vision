@@ -429,7 +429,7 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                'grex', 'saiaprbb', 'grexbb', 'all'],
-                        help ='''
+                        help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
 
