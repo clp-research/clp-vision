@@ -25,6 +25,7 @@ import nltk
 import pandas as pd
 
 from tqdm import tqdm
+from itertools import chain
 
 import sys
 sys.path.append('../Utils')
@@ -346,26 +347,28 @@ class TaskFunctions(object):
     #
     # task-specific options
     #
-    @staticmethod
-    def _process_mscocobb(inpath, outbase, targs):
-        args, unparsed_args = targs
+    def tsk_mscocobb(self):
+        config = self.config
+        args = self.args
 
+        print_timestamped_message('... MSCOCO Bounding Boxes', indent=4)
+
+        refcoco_path = config.get('REFCOCO', 'refcoco_path')
         mscoco_path = config.get('MSCOCO', 'mscoco_path')
 
         with open(mscoco_path, 'r') as f:
             mscoco = json.load(f)
 
-        with open(inpath, 'r') as f:
+        with open(refcoco_path, 'r') as f:
             refcoco = pickle.load(f)
 
         cocodf = pd.DataFrame(mscoco['annotations'])
-        print cocodf.headd()
 
-        #get refcoco image ids
+        # get refcoco image ids
         refcoco_imgs = [inst['image_id'] for inst in refcoco]
         img_ids_full = set(refcoco_imgs)
 
-        #save images used in refcoco
+        # save images used in refcoco
         cocodf = cocodf[cocodf['image_id'].isin(img_ids_full)]
 
         cocodf['i_corpus'] = icorpus_code['mscoco']
@@ -382,8 +385,8 @@ class TaskFunctions(object):
         for n, row in tqdm(bbdf_mscoco.iterrows()):
 
             this_image_id = int(row['image_id'])
-            this_region_id = row['region_id']
-            this_category = row['cat']
+            this_region_id = int(row['region_id'])
+            this_category = int(row['cat'])
 
             # Skip over b/w images. Test only once for each image.
             if checked.get(this_image_id) == 'skip':
@@ -394,7 +397,7 @@ class TaskFunctions(object):
                 if len(img.shape) != 3:
                     logging.info('skipping image %d' % (this_image_id))
                     continue
-            this_bb = row['bb']
+            this_bb = list(chain(*row['bb']))
             if np.min(np.array(this_bb)) < 0:
                 logging.info('skipping bb for %d %d' %
                              (this_image_id, this_region_id))
@@ -403,22 +406,10 @@ class TaskFunctions(object):
                             this_region_id, this_bb, this_category))
 
         bbdf_coco = pd.DataFrame(outrows,
-                                 columns=('i_corpus image_id ' +
-                                          'region_id bb cat').split())
+                                 columns=('i_corpus image_id' +
+                                         ' region_id bb cat').split())
 
-        TaskFunctions._dumpDF(bbdf_coco, args.out_dir + outbase + '.json', args)
-
-    def tsk_mscocobb(self):
-        config = self.config
-        args = self.args
-
-        print_timestamped_message('... MSCOCO Bounding Boxes', indent=4)
-
-        refcoco_path = config.get('REFCOCO', 'refcoco_path')
-
-        TaskFunctions._process_mscocobb(refcoco_path,
-                                     'mscoco_bbdf', targs)
-
+        self._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -445,7 +436,7 @@ if __name__ == '__main__':
     parser.add_argument('task',
                         nargs='+',
                         choices = ['saiapr', 'refcoco', 'refcocoplus',
-                               'grex', 'saiaprbb', 'mscocobb', 'grexbb', 'all'],
+                               'grex', 'saiaprbb', 'mscocobb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
