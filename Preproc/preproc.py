@@ -28,7 +28,7 @@ from tqdm import tqdm
 
 import sys
 sys.path.append('../Utils')
-from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
+from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb, get_image_filename
 from utils import print_timestamped_message
 
 
@@ -342,6 +342,66 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_saiapr, args.out_dir + '/saiapr_bbdf.json', args)
 
+    # ======= GREX bounding boxes ========
+    #
+    # task-specific options
+    #
+    def tsk_grexbb(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... GoogleCOCOrex Bounding Boxes', indent=4)
+
+        grex_path = config.get('GREX', 'grex_base') + \
+                               '/google_refexp_train_201511_coco_aligned.json'
+        gjson_path = config.get('GREX', 'grex_base') +\
+                  '/google_refexp_val_201511_coco_aligned.json'
+
+        with open(grex_path, 'r') as f:
+            gexp = json.load(f)
+        with open(gjson_path, 'r') as f:
+            gexpv = json.load(f)
+
+        gexannv = pd.DataFrame(gexpv['annotations']).T
+        gexann = pd.DataFrame(gexp['annotations']).T
+
+        gexann_full = pd.concat([gexann, gexannv])
+
+        gexann_full['bbox'] = gexann_full['bbox'].apply(lambda x: [int(n) for n in x])
+
+        # check all the bounding boxes for RexCOCO regions
+        checked = {}
+        outrows = []
+        this_corpus = icorpus_code['mscoco_grprops']
+
+        for n, row in tqdm(gexann_full.iterrows()):
+
+            this_image_id = int(row['image_id'])
+            this_region_id = row['annotation_id']
+            this_category = row['category_id']
+
+            # Skip over b/w images. Test only once for each image.
+            if checked.get(this_image_id) == 'skip':
+                continue
+            elif checked.get(this_image_id) != 'checked':
+                img = plt.imread(get_image_filename(config, this_corpus, this_image_id))
+                checked[this_image_id] = 'checked'
+                if len(img.shape) != 3:
+                    logging.info('skipping image %d' % (this_image_id))
+                    continue
+            this_bb = row['bbox']
+            if np.min(np.array(this_bb)) < 0:
+                logging.info('skipping bb for %d %d' %
+                             (this_image_id, this_region_id))
+                continue
+            outrows.append((this_corpus, this_image_id,
+                            this_region_id, this_bb, this_category))
+        bbdf_coco = pd.DataFrame(outrows,
+                                 columns=('i_corpus image_id ' +
+                                          'region_id bb cat').split())
+
+        self._dumpDF(bbdf_coco, args.out_dir + '/grex_bbdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -367,8 +427,8 @@ if __name__ == '__main__':
                         action='store_true')
     parser.add_argument('task',
                         nargs='+',
-                        choices = ['saiapr', 'refcoco', 'refcocoplus',
-                               'grex', 'saiaprbb', 'all'],
+                        choices=['saiapr', 'refcoco', 'refcocoplus',
+                               'grex', 'saiaprbb', 'grexbb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
