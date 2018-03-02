@@ -343,6 +343,140 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_saiapr, args.out_dir + '/saiapr_bbdf.json', args)
 
+    # ======= GREX bounding boxes ========
+    #
+    # task-specific options
+    #
+    def tsk_grexbb(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... GoogleCOCOrex Bounding Boxes', indent=4)
+
+        grex_path = config.get('GREX', 'grex_base') + \
+            '/google_refexp_train_201511_coco_aligned.json'
+        gjson_path = config.get('GREX', 'grex_base') +\
+            '/google_refexp_val_201511_coco_aligned.json'
+
+        with open(grex_path, 'r') as f:
+            gexp = json.load(f)
+        with open(gjson_path, 'r') as f:
+            gexpv = json.load(f)
+
+        gexannv = pd.DataFrame(gexpv['annotations']).T
+        gexann = pd.DataFrame(gexp['annotations']).T
+
+        gexann_full = pd.concat([gexann, gexannv])
+
+        gexann_full['bbox'] =\
+            gexann_full['bbox'].apply(lambda x: [int(n) for n in x])
+
+        # check all the bounding boxes for RexCOCO regions
+        checked = {}
+        outrows = []
+        this_corpus = icorpus_code['mscoco_grprops']
+
+        for n, row in tqdm(gexann_full.iterrows()):
+
+            this_image_id = int(row['image_id'])
+            this_region_id = row['annotation_id']
+            this_category = row['category_id']
+
+            # Skip over b/w images. Test only once for each image.
+            if checked.get(this_image_id) == 'skip':
+                continue
+            elif checked.get(this_image_id) != 'checked':
+                img = plt.imread(get_image_filename(config,
+                                                    this_corpus,
+                                                    this_image_id))
+                checked[this_image_id] = 'checked'
+                if len(img.shape) != 3:
+                    logging.info('skipping image %d' % (this_image_id))
+                    continue
+            this_bb = row['bbox']
+            if np.min(np.array(this_bb)) < 0:
+                logging.info('skipping bb for %d %d' %
+                             (this_image_id, this_region_id))
+                continue
+            outrows.append((this_corpus, this_image_id,
+                            this_region_id, this_bb, this_category))
+        bbdf_coco = pd.DataFrame(outrows,
+                                 columns=('i_corpus image_id ' +
+                                          'region_id bb cat').split())
+
+        self._dumpDF(bbdf_coco, args.out_dir + '/grex_bbdf.json', args)
+
+    # ======= MSCOCO bounding boxes ========
+    #
+    # task-specific options
+    #
+    def tsk_mscocobb(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... MSCOCO Bounding Boxes', indent=4)
+
+        refcoco_path = config.get('REFCOCO', 'refcoco_path')
+        mscoco_path = config.get('MSCOCO', 'mscoco_path')
+
+        with open(mscoco_path, 'r') as f:
+            mscoco = json.load(f)
+
+        with open(refcoco_path, 'r') as f:
+            refcoco = pickle.load(f)
+
+        cocodf = pd.DataFrame(mscoco['annotations'])
+
+        # get refcoco image ids
+        refcoco_imgs = [inst['image_id'] for inst in refcoco]
+        img_ids_full = set(refcoco_imgs)
+
+        # save images used in refcoco
+        cocodf = cocodf[cocodf['image_id'].isin(img_ids_full)]
+
+        cocodf['i_corpus'] = icorpus_code['mscoco']
+        cocodf['bbox'] = cocodf['bbox'].apply(lambda x: [int(n) for n in x])
+
+        bbdf_mscoco = cocodf[['i_corpus', 'image_id',
+                              'id', 'bbox', 'category_id']]
+        bbdf_mscoco.columns = ['i_corpus image_id region_id bb cat'.split()]
+
+        # check all the bounding boxes for MSCOCO regions
+        checked = {}
+        outrows = []
+        this_corpus = icorpus_code['mscoco']
+
+        for n, row in tqdm(bbdf_mscoco.iterrows()):
+
+            this_image_id = int(row['image_id'])
+            this_region_id = int(row['region_id'])
+            this_category = int(row['cat'])
+
+            # Skip over b/w images. Test only once for each image.
+            if checked.get(this_image_id) == 'skip':
+                continue
+            elif checked.get(this_image_id) != 'checked':
+                img = plt.imread(get_image_filename(config,
+                                                    this_corpus,
+                                                    this_image_id))
+                checked[this_image_id] = 'checked'
+                if len(img.shape) != 3:
+                    logging.info('skipping image %d' % (this_image_id))
+                    continue
+            this_bb = list(chain(*row['bb']))
+            if np.min(np.array(this_bb)) < 0:
+                logging.info('skipping bb for %d %d' %
+                             (this_image_id, this_region_id))
+                continue
+            outrows.append((this_corpus, this_image_id,
+                            this_region_id, this_bb, this_category))
+
+        bbdf_coco = pd.DataFrame(outrows,
+                                 columns=('i_corpus image_id' +
+                                          ' region_id bb cat').split())
+
+        self._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -369,7 +503,8 @@ if __name__ == '__main__':
     parser.add_argument('task',
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
-                               'grex', 'saiaprbb', 'grexbb', 'all'],
+                                 'grex', 'saiaprbb', 'grexbb',
+                                 'mscocobb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
