@@ -25,12 +25,10 @@ import nltk
 import pandas as pd
 
 from tqdm import tqdm
-from itertools import chain
 
 import sys
 sys.path.append('../Utils')
-from utils import icorpus_code, saiapr_image_filename
-from utils import get_saiapr_bb, get_image_filename
+from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 
 
@@ -297,6 +295,7 @@ class TaskFunctions(object):
 
         TaskFunctions._dumpDF(gexdf, args.out_dir + '/grex_refdf.json', args)
 
+
     # ======= SAIAPR bounding boxes ========
     #
     # task-specific options:
@@ -368,9 +367,8 @@ if __name__ == '__main__':
                         action='store_true')
     parser.add_argument('task',
                         nargs='+',
-                        choices=['saiapr', 'refcoco', 'refcocoplus',
-                                 'grex', 'saiaprbb', 'grexbb',
-                                 'mscocobb', 'all'],
+                        choices = ['saiapr', 'refcoco', 'refcocoplus',
+                               'grex', 'saiaprbb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
