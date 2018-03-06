@@ -19,8 +19,6 @@ import numpy as np
 from keras.models import Model
 from keras import backend
 
-from tqdm import tqdm
-
 sys.path.append('../Utils')
 from utils import print_timestamped_message, code_icorpus, get_image_part
 from utils import join_imagenet_id
@@ -77,9 +75,9 @@ def compute_feats(config, bbdf, model, preproc,
     X_out = []
 
     # FIXME, for debugging only! Reduced size or starting with offset
-    bbdf = bbdf[:100]
+    bbdf = bbdf[:1000]
 
-    for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
+    for n, row in bbdf.iterrows():
         this_icorpus = row['i_corpus']
         this_image_id = row['image_id']
         this_region_id = row['region_id']
@@ -162,7 +160,6 @@ def compute_feats(config, bbdf, model, preproc,
     np.savez_compressed(filename, X_out)
 
 
-
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -181,7 +178,9 @@ if __name__ == '__main__':
                         Where to look for the bbdf file.
                         default: '../Preproc/PreProcOut' ''')
     parser.add_argument('-s', '--size_batch',
-                        help='How many images to give to model as one batch',
+                        help='''
+                        How many images to give to model as one batch.
+                        default: 100''',
                         type=int,
                         default=100)
     parser.add_argument('model',
@@ -250,6 +249,9 @@ if __name__ == '__main__':
                                 compression='gzip')
         else:
             this_bbdf_path = this_bbdf_base
+            if not isfile(this_bbdf_base):
+                print "bbdf file (%s) not found. Aborting." % (this_bbdf_path)
+                sys.exit(1)
             bbdf = pd.read_json(this_bbdf_base,
                                 orient='split')
         print this_bbdf_path

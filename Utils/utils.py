@@ -38,13 +38,6 @@ def saiapr_basepath(image_id):
     return directory
 
 
-def mscoco_image_filename(config, image_id):
-    '''get the image path for an MSCOCO image (from train2014 or val2014),
-    given the ID'''
-    return config.get('MSCOCO', 'mscoco_base') + \
-           '/train2014/COCO_train2014_%012d.jpg' % (image_id)
-
-
 def saiapr_image_filename(config, image_id):
     '''return the path of a SAIAPR image, given the image ID'''
     directory = saiapr_basepath(image_id)
@@ -79,8 +72,6 @@ def join_imagenet_id(image_id, region_id):
 def get_image_filename(config, icorp, image_id):
     if 'saiapr' in code_icorpus[icorp]:
         return saiapr_image_filename(config, image_id)
-    if 'mscoco' in code_icorpus[icorp]:
-        return mscoco_image_filename(config, image_id)
     raise ValueError('Unknown corpus code')
 
 
