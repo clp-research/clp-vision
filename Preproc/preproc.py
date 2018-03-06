@@ -396,13 +396,13 @@ class TaskFunctions(object):
             grex_json = json.load(f)
 
         gimdf = pd.DataFrame(grex_json['images']).T
-        
+       
         with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
             refcoco_splits = json.load(f)
 
         with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
             grex_splits = json.load(f)
-     
+    
         refcoco_testfiledf = pd.DataFrame(list(chain(refcoco_splits['testA'],
                                                      refcoco_splits['testB'],
                                                      refcoco_splits['val'])),
@@ -424,7 +424,7 @@ class TaskFunctions(object):
         bbdf_cocorprop = pd.DataFrame(rows,
                                       columns='i_corpus image_id region_id bb cat'.split())
 
-        self._dumpDF(bbdf_cocorprop, 'PreProcOut/cocogrprops_bbdf.json', args)
+        self._dumpDF(bbdf_cocorprop, args.out_dir + '/cocogrprops_bbdf.json', args)
 
 
 
