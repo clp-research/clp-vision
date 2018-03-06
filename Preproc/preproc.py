@@ -205,7 +205,6 @@ class TaskFunctions(object):
 
             with open(args.out_dir + '/refcoco_splits.json', 'w') as f:
                 json.dump(refcoco_splits, f)
-            print 'dumped splits'
 
     def tsk_refcoco(self):
         config = self.config
@@ -381,51 +380,51 @@ class TaskFunctions(object):
         self._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
 
 
-        # ======= MSCOCO bounding boxes ========
-        # task-specific options:
-        #
-        def tsk_grexbb(self):
+    # ======= MSCOCO bounding boxes ========
+    # task-specific options:
+    #
+    def tsk_grexbb(self):
             
-            config = self.config
-            args = self.args
+        config = self.config
+        args = self.args
 
-            print_timestamped_message('... COCORex Bounding Boxes', indent=4)
+        print_timestamped_message('... COCORex Bounding Boxes', indent=4)
 
-            grex_path = config.get('GREX', 'grex_base') +\
-                        '/google_refexp_train_201511_coco_aligned.json'
-            with open(grex_path, 'r') as f:
-                grex_json = json.load(f)
+        grex_path = config.get('GREX', 'grex_base') +\
+                    '/google_refexp_train_201511_coco_aligned.json'
+        with open(grex_path, 'r') as f:
+            grex_json = json.load(f)
 
-            gimdf = pd.DataFrame(grex_json['images']).T
-           
-            with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
-                refcoco_splits = json.load(f)
+        gimdf = pd.DataFrame(grex_json['images']).T
+        
+        with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
+            refcoco_splits = json.load(f)
 
-            with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
-                grex_splits = json.load(f)
+        with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
+            grex_splits = json.load(f)
      
-            refcoco_testfiledf = pd.DataFrame(list(chain(refcoco_splits['testA'],
-                                                         refcoco_splits['testB'],
-                                                         refcoco_splits['val'])),
-                                              columns=['image_id'])
+        refcoco_testfiledf = pd.DataFrame(list(chain(refcoco_splits['testA'],
+                                                     refcoco_splits['testB'],
+                                                     refcoco_splits['val'])),
+                                          columns=['image_id'])
 
-            gimdf_reduced = pd.merge(gimdf, refcoco_testfiledf)
+        gimdf_reduced = pd.merge(gimdf, refcoco_testfiledf)
 
-            rows = []
-            this_i_corpus = icorpus_code['mscoco_grprops']
-            for n, row in tqdm(gimdf_reduced.iterrows()):
-                bbs = row['region_candidates']
-                this_image_id = row['image_id']
-                for k, this_bbs in enumerate(bbs):
-                    this_bb = this_bbs['bounding_box']
-                    this_cat = this_bbs['predicted_object_name']
-                    rows.append([this_i_corpus, this_image_id, k, this_bb, this_cat])
+        rows = []
+        this_i_corpus = icorpus_code['mscoco_grprops']
+        for n, row in tqdm(gimdf_reduced.iterrows()):
+            bbs = row['region_candidates']
+            this_image_id = row['image_id']
+            for k, this_bbs in enumerate(bbs):
+                this_bb = this_bbs['bounding_box']
+                this_cat = this_bbs['predicted_object_name']
+                rows.append([this_i_corpus, this_image_id, k, this_bb, this_cat])
 
 
-            bbdf_cocorprop = pd.DataFrame(rows,
-                                          columns='i_corpus image_id region_id bb cat'.split())
+        bbdf_cocorprop = pd.DataFrame(rows,
+                                      columns='i_corpus image_id region_id bb cat'.split())
 
-            self._dumpDF(bbdf_cocorprop, 'PreProcOut/cocogrprops_bbdf.json', args)
+        self._dumpDF(bbdf_cocorprop, 'PreProcOut/cocogrprops_bbdf.json', args)
 
 
 
