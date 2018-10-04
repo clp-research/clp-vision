@@ -15,6 +15,7 @@ import re
 import ConfigParser
 import codecs
 import json
+from ijson import items
 import cPickle as pickle
 import logging
 from itertools import chain
@@ -31,7 +32,8 @@ import sys
 sys.path.append('../Utils')
 from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
-
+sys.path.append('Helpers')
+from visgen_helpers import serialise_region_descr
 
 # ========= util functions used only here  ===========
 
@@ -415,6 +417,52 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_cocorprop, args.out_dir + '/cocogrprops_bbdf.json', args)
 
+    # ======= Visual Genome Regions ========
+    #
+    def tsk_visgenreg(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... VisualGenome Regions', indent=4)
+
+        vgimd_path = config.get('VISGEN', 'visgen_12') + '/jsons/image_data.json'
+        vgreg_path = config.get('VISGEN', 'visgen_12') + '/jsons/region_graphs.json'
+        this_corpus = icorpus_code['visual_genome']
+
+        with open(vgimd_path, 'r') as f:
+            out = []
+            iterator = items(f, 'item')
+            for n, entry in enumerate(iterator):
+                out.append((entry['image_id'], entry['coco_id'], entry['flickr_id']))
+        vg_im_df = pd.DataFrame(out,
+                                columns='image_id coco_id flickr_id'.split())
+
+        with open(vgreg_path, 'r') as f:
+            out = []
+            iterator = items(f, 'item')
+            for n, entry in enumerate(tqdm(iterator)):
+                image_id = entry['image_id']
+                image_id_lookup = vg_im_df[vg_im_df['image_id'] == image_id]
+                coco_id = image_id_lookup['coco_id'].values[0]
+                flickr_id = image_id_lookup['flickr_id'].values[0]
+                for this_region in entry['regions']:
+                    region_id = this_region['region_id']
+                    phrase = this_region['phrase']
+                    x, y, w, h = (this_region['x'], this_region['y'],
+                                  this_region['width'], this_region['height'])
+
+                    sreg = serialise_region_descr(this_region)
+                    out.append((this_corpus, image_id, coco_id, flickr_id,
+                                region_id, phrase, [x, y, w, h]) + sreg)
+                if n == 1000:
+                    iterator.close()
+                    break
+
+        vgreg_df = pd.DataFrame(out,
+                                columns='i_corpus image_id coco_id flickr_id region_id phrase bb rel_id rel pphrase'.split())
+
+        self._dumpDF(vgreg_df, args.out_dir + '/vgregdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -442,7 +490,7 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
-                                 'grexbb', 'all'],
+                                 'grexbb', 'visgenreg', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
