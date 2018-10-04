@@ -295,7 +295,6 @@ class TaskFunctions(object):
 
         TaskFunctions._dumpDF(gexdf, args.out_dir + '/grex_refdf.json', args)
 
-
     # ======= SAIAPR bounding boxes ========
     #
     # task-specific options:

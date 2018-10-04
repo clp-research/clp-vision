@@ -5,6 +5,7 @@ import scipy.io
 import numpy as np
 import datetime
 import matplotlib.pyplot as plt
+import matplotlib
 from PIL import Image as PImage
 
 
@@ -97,3 +98,71 @@ def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
     else:
         img_resized = img_cropped
     return ((image_id, img), img_resized)
+
+
+def plot_labelled_bb(impath, bblist, title=None, text_size='large',
+                     mode='path', omode='screen', opath=None):
+    '''Given the path of an image and a list containing tuples
+    of bounding box (a list of x,y,w,h) and label (str),
+    plot these boxes and labels into the image.
+    If mode is path, impath is path, if it is image, impath is the actual
+    image on top of which the bbs are to be drawn.
+    If omode is screen, assumption is that matplotlib functions are
+    displayed directly (i.e., IPython inline mode), if it is
+    img, function saves the plot to opath.'''
+
+    if mode == 'path':
+        img = plt.imread(impath)
+    elif mode == 'img':
+        img = impath
+
+    fig, ax = plt.subplots()
+    fig.set_size_inches(10, 20)
+    ax.imshow(img)
+
+    if bblist is not None:
+        for (this_bb, this_label) in bblist:
+            x, y, w, h = this_bb
+
+            ax.add_patch(
+                matplotlib.patches.Rectangle(
+                    (x, y),
+                    w,
+                    h,
+                    edgecolor='r',
+                    fill=False, linewidth=4
+                )
+            )
+            if this_label != '':
+                ax.text(x, y, this_label, size=text_size, style='italic',
+                        bbox={'facecolor': 'white', 'alpha': 0.7, 'pad': 10})
+    if title is not None:
+        ax.set_title(title)
+    ax.axis('off')
+
+    if omode == 'img':
+        fig.savefig(opath, bbox_inches='tight', pad_inches=0)
+        plt.close()  # to supress showing the plot in interactive mode
+
+
+def plot_img_cropped(impath, this_bb, title=None, text_size='large',
+                     mode='path', omode='screen', opath=None):
+    if mode == 'path':
+        img = plt.imread(impath)
+    elif mode == 'img':
+        img = impath
+
+    fig, ax = plt.subplots()
+    fig.set_size_inches(10, 20)
+
+    x, y, w, h = this_bb
+
+    img_cropped = img[y:y+h, x:x+w]
+
+    ax.imshow(img_cropped)
+
+    if omode == 'img':
+        fig.savefig(opath, bbox_inches='tight', pad_inches=0)
+        plt.close()  # to supress showing the plot in interactive mode
+
+    return img_cropped
