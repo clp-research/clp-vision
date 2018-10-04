@@ -73,6 +73,15 @@ def mscoco_image_filename(config, image_id):
     return os.path.join(mscoco_basedir, 'COCO_train2014_%012d.jpg' % (image_id))
 
 
+def visgen_image_filename(config, image_id):
+    visgen_image_root = config.get('VISGEN', 'visgen_12') + '/images'
+    file_base = '%d.jpg' % (image_id)
+    full_path = visgen_image_root + '/VG_100K/' + file_base
+    if not os.path.isfile(full_path):
+        return visgen_image_root + '/VG_100K_2/' + file_base
+    return full_path
+
+
 def join_imagenet_id(image_id, region_id):
     return 'n%08d_%d' % (image_id, region_id)
 
@@ -82,6 +91,8 @@ def get_image_filename(config, icorp, image_id):
         return saiapr_image_filename(config, image_id)
     if 'mscoco' in code_icorpus[icorp]:
         return mscoco_image_filename(config, image_id)
+    if code_icorpus[icorp] == 'visual_genome':
+        return visgen_image_filename(config, image_id)
     raise ValueError('Unknown corpus code')
 
 

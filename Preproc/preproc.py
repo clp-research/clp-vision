@@ -454,9 +454,9 @@ class TaskFunctions(object):
                     sreg = serialise_region_descr(this_region)
                     out.append((this_corpus, image_id, coco_id, flickr_id,
                                 region_id, phrase, [x, y, w, h]) + sreg)
-                if n == 1000:
-                    iterator.close()
-                    break
+                # if n == 1000:
+                #     iterator.close()
+                #     break
 
         vgreg_df = pd.DataFrame(out,
                                 columns='i_corpus image_id coco_id flickr_id region_id phrase bb rel_id rel pphrase'.split())
