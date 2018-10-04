@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import division
-
+import os
 import scipy.io
 import numpy as np
 import datetime
@@ -66,6 +66,13 @@ def get_saiapr_bb(config, image_id, region_id):
     return [x1, y1, x2-x1, y2-y1]
 
 
+def mscoco_image_filename(config, image_id):
+    '''get the image path for an MSCOCO image (from train2014),
+       given the ID'''
+    mscoco_basedir = config.get('MSCOCO', 'mscoco_base') + '/train2014'
+    return os.path.join(mscoco_basedir, 'COCO_train2014_%012d.jpg' % (image_id))
+
+
 def join_imagenet_id(image_id, region_id):
     return 'n%08d_%d' % (image_id, region_id)
 
@@ -73,6 +80,8 @@ def join_imagenet_id(image_id, region_id):
 def get_image_filename(config, icorp, image_id):
     if 'saiapr' in code_icorpus[icorp]:
         return saiapr_image_filename(config, image_id)
+    if 'mscoco' in code_icorpus[icorp]:
+        return mscoco_image_filename(config, image_id)
     raise ValueError('Unknown corpus code')
 
 
