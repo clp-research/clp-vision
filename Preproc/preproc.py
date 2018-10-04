@@ -17,6 +17,7 @@ import codecs
 import json
 import cPickle as pickle
 import logging
+from itertools import chain
 
 import numpy as np
 import scipy.io
@@ -193,7 +194,7 @@ class TaskFunctions(object):
                               args.out_dir + '/' + outbase + '.json',
                               args)
 
-        if outbase == 'refcoco':
+        if outbase == 'refcoco_refdf':
             # write out the suggested splits from ReferIt team
             #  here we have more than just train and val
             refcoco_splits = {}
@@ -341,6 +342,90 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_saiapr, args.out_dir + '/saiapr_bbdf.json', args)
 
+    # ======= MSCOCO bounding boxes ========
+    # task-specific options:
+    #
+    def tsk_mscocobb(self):
+
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... MSCOCO Bounding Boxes', indent=4)
+
+        mscoco_path = config.get('MSCOCO', 'mscoco_path')
+
+        with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
+            refcoco_splits = json.load(f)
+
+        with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
+            grex_splits = json.load(f)
+
+        all_coco_files = list(set(chain(*refcoco_splits.values())).union(set(chain(*grex_splits))))
+
+        with open(mscoco_path, 'r') as f:
+            coco_in = json.load(f)
+
+        cocoandf = pd.DataFrame(coco_in['annotations'])
+        file_df = pd.DataFrame(all_coco_files, columns=['image_id'])
+
+        cocoandf_reduced = pd.merge(cocoandf, file_df)
+
+        bbdf_coco = cocoandf_reduced[['image_id', 'id', 'bbox', 'category_id']]
+        bbdf_coco['i_corpus'] = icorpus_code['mscoco']
+
+        bbdf_coco.columns = 'image_id region_id bb cat i_corpus'.split()
+        bbdf_coco = bbdf_coco['i_corpus image_id region_id bb cat'.split()]
+
+        self._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
+
+
+    # ======= MSCOCO bounding boxes ========
+    # task-specific options:
+    #
+    def tsk_grexbb(self):
+            
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... COCORex Bounding Boxes', indent=4)
+
+        grex_path = config.get('GREX', 'grex_base') +\
+                    '/google_refexp_train_201511_coco_aligned.json'
+        with open(grex_path, 'r') as f:
+            grex_json = json.load(f)
+
+        gimdf = pd.DataFrame(grex_json['images']).T
+       
+        with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
+            refcoco_splits = json.load(f)
+
+        with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
+            grex_splits = json.load(f)
+    
+        refcoco_testfiledf = pd.DataFrame(list(chain(refcoco_splits['testA'],
+                                                     refcoco_splits['testB'],
+                                                     refcoco_splits['val'])),
+                                          columns=['image_id'])
+
+        gimdf_reduced = pd.merge(gimdf, refcoco_testfiledf)
+
+        rows = []
+        this_i_corpus = icorpus_code['mscoco_grprops']
+        for n, row in tqdm(gimdf_reduced.iterrows()):
+            bbs = row['region_candidates']
+            this_image_id = row['image_id']
+            for k, this_bbs in enumerate(bbs):
+                this_bb = this_bbs['bounding_box']
+                this_cat = this_bbs['predicted_object_name']
+                rows.append([this_i_corpus, this_image_id, k, this_bb, this_cat])
+
+
+        bbdf_cocorprop = pd.DataFrame(rows,
+                                      columns='i_corpus image_id region_id bb cat'.split())
+
+        self._dumpDF(bbdf_cocorprop, args.out_dir + '/cocogrprops_bbdf.json', args)
+
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -366,8 +451,8 @@ if __name__ == '__main__':
                         action='store_true')
     parser.add_argument('task',
                         nargs='+',
-                        choices = ['saiapr', 'refcoco', 'refcocoplus',
-                               'grex', 'saiaprbb', 'all'],
+                        choices=['saiapr', 'refcoco', 'refcocoplus',
+                                 'grex', 'saiaprbb', 'mscocobb', 'grexbb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
