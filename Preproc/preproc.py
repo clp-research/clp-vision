@@ -85,8 +85,6 @@ class TaskFunctions(object):
 
     # ======= SAIAPR ========
     #
-    # task-specific options:
-    #
     def tsk_saiapr(self):
         config = self.config
         args = self.args
@@ -151,8 +149,6 @@ class TaskFunctions(object):
             json.dump(saiapr_90_10_splits, f)
 
     # ======= RefCoco and RefCocoPlus ========
-    #
-    # task-specific options:
     #
     @staticmethod
     def _process_refcoco(inpath, outbase, targs):
@@ -230,8 +226,6 @@ class TaskFunctions(object):
 
     # ======= GoogleCocoRefExp ========
     #
-    # task-specific options:
-    #
     def tsk_grex(self):
         config = self.config
         args = self.args
@@ -298,8 +292,6 @@ class TaskFunctions(object):
 
     # ======= SAIAPR bounding boxes ========
     #
-    # task-specific options:
-    #
     def tsk_saiaprbb(self):
         config = self.config
         args = self.args
@@ -343,7 +335,6 @@ class TaskFunctions(object):
         self._dumpDF(bbdf_saiapr, args.out_dir + '/saiapr_bbdf.json', args)
 
     # ======= MSCOCO bounding boxes ========
-    # task-specific options:
     #
     def tsk_mscocobb(self):
 
@@ -362,6 +353,8 @@ class TaskFunctions(object):
 
         all_coco_files = list(set(chain(*refcoco_splits.values())).union(set(chain(*grex_splits))))
 
+        all_coco_files = [e for e in all_coco_files if type(e) is int]
+
         with open(mscoco_path, 'r') as f:
             coco_in = json.load(f)
 
@@ -378,9 +371,7 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
 
-
-    # ======= MSCOCO bounding boxes ========
-    # task-specific options:
+    # ======= MSCOCO region proposal bounding boxes ========
     #
     def tsk_grexbb(self):
             
@@ -389,22 +380,21 @@ class TaskFunctions(object):
 
         print_timestamped_message('... COCORex Bounding Boxes', indent=4)
 
-        grex_path = config.get('GREX', 'grex_base') +\
-                    '/google_refexp_train_201511_coco_aligned.json'
+        grex_path = config.get('GREX', 'grex_base') + '/google_refexp_train_201511_coco_aligned.json'
         with open(grex_path, 'r') as f:
             grex_json = json.load(f)
 
         gimdf = pd.DataFrame(grex_json['images']).T
-       
+        gimdf['image_id'] = gimdf['image_id'].astype(int)
+
         with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
             refcoco_splits = json.load(f)
 
-        with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
-            grex_splits = json.load(f)
-    
-        refcoco_testfiledf = pd.DataFrame(list(chain(refcoco_splits['testA'],
-                                                     refcoco_splits['testB'],
-                                                     refcoco_splits['val'])),
+        all_files = list(chain(refcoco_splits['testA'],
+                               refcoco_splits['testB'],
+                               refcoco_splits['val']))
+        all_files = [e for e in all_files if type(e) is int]
+        refcoco_testfiledf = pd.DataFrame(all_files,
                                           columns=['image_id'])
 
         gimdf_reduced = pd.merge(gimdf, refcoco_testfiledf)
@@ -417,14 +407,13 @@ class TaskFunctions(object):
             for k, this_bbs in enumerate(bbs):
                 this_bb = this_bbs['bounding_box']
                 this_cat = this_bbs['predicted_object_name']
-                rows.append([this_i_corpus, this_image_id, k, this_bb, this_cat])
-
+                rows.append([this_i_corpus, this_image_id, k,
+                             this_bb, this_cat])
 
         bbdf_cocorprop = pd.DataFrame(rows,
                                       columns='i_corpus image_id region_id bb cat'.split())
 
         self._dumpDF(bbdf_cocorprop, args.out_dir + '/cocogrprops_bbdf.json', args)
-
 
 
 # ======== MAIN =========
@@ -452,7 +441,8 @@ if __name__ == '__main__':
     parser.add_argument('task',
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
-                                 'grex', 'saiaprbb', 'mscocobb', 'grexbb', 'all'],
+                                 'grex', 'saiaprbb', 'mscocobb',
+                                 'grexbb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
