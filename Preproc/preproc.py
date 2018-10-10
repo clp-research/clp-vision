@@ -444,7 +444,7 @@ class TaskFunctions(object):
         with open(vgreg_path, 'r') as f:
             out = []
             iterator = items(f, 'item')
-            for n, entry in enumerate(tqdm(iterator)):
+            for n, entry in enumerate(tqdm(iterator, total=N_VISGEN_IMG)):
                 image_id = entry['image_id']
                 image_id_lookup = vg_im_df[vg_im_df['image_id'] == image_id]
                 coco_id = image_id_lookup['coco_id'].values[0]
@@ -460,7 +460,7 @@ class TaskFunctions(object):
                                 region_id, phrase, [x, y, w, h]) + sreg)
 
         vgreg_df = pd.DataFrame(out,
-                                columns='i_corpus image_id coco_id flickr_id region_id phrase bb rel_id rel pphrase'.split())
+                                columns='i_corpus image_id coco_id flickr_id region_id phrase bb rel_ids rels pphrase'.split())
 
         self._dumpDF(vgreg_df, args.out_dir + '/vgregdf.json', args)
 
