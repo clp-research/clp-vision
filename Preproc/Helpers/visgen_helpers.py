@@ -63,3 +63,7 @@ def serialise_region_descr(this_region):
         out_phrase.append(this_phrase[last_pos:])
     return (rel_id,  # this_phrase,
             (sub_id, predicate, obj_id), ''.join(out_phrase))
+
+
+def empty_to_none(inlist):
+    return inlist if inlist else [None]

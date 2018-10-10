@@ -33,7 +33,11 @@ sys.path.append('../Utils')
 from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 sys.path.append('Helpers')
-from visgen_helpers import serialise_region_descr
+from visgen_helpers import serialise_region_descr, empty_to_none
+
+N_VISGEN_IMG = 108077
+#  The number of images in the visgen set, for the progress bar
+
 
 # ========= util functions used only here  ===========
 
@@ -417,7 +421,7 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_cocorprop, args.out_dir + '/cocogrprops_bbdf.json', args)
 
-    # ======= Visual Genome Regions ========
+    # ======= Visual Genome Region Descriptions ========
     #
     def tsk_visgenreg(self):
         config = self.config
@@ -454,14 +458,97 @@ class TaskFunctions(object):
                     sreg = serialise_region_descr(this_region)
                     out.append((this_corpus, image_id, coco_id, flickr_id,
                                 region_id, phrase, [x, y, w, h]) + sreg)
-                # if n == 1000:
-                #     iterator.close()
-                #     break
 
         vgreg_df = pd.DataFrame(out,
                                 columns='i_corpus image_id coco_id flickr_id region_id phrase bb rel_id rel pphrase'.split())
 
         self._dumpDF(vgreg_df, args.out_dir + '/vgregdf.json', args)
+
+    # ======= Visual Genome Relationships ========
+    #
+    def tsk_visgenrel(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... VisualGenome Relationships', indent=4)
+
+        vgrel_path = config.get('VISGEN', 'visgen_12') + '/jsons/relationships.json'
+        with open(vgrel_path, 'r') as f:
+            out = []
+            iterator = items(f, 'item')
+            for n, entry in enumerate(tqdm(iterator, total=N_VISGEN_IMG)):
+                image_id = entry['image_id']
+                for rel in entry['relationships']:
+                    rel_syn = empty_to_none(rel['synsets'])
+                    sub_syn = empty_to_none(rel['subject']['synsets'])
+                    obj_syn = empty_to_none(rel['object']['synsets'])
+                    for this_rel in rel_syn:
+                        for this_sub in sub_syn:
+                            for this_obj in obj_syn:
+                                out.append((this_rel,
+                                            rel['predicate'],
+                                            rel['relationship_id'],
+                                            this_sub,
+                                            rel['subject']['object_id'],
+                                            this_obj,
+                                            rel['object']['object_id'],
+                                            image_id))
+        vgrel_df = pd.DataFrame(out,
+                                columns='rel_syn predicate rel_id sub_syn sub_id obj_syn obj_id image_id'.split())
+        self._dumpDF(vgrel_df, args.out_dir + '/vgreldf.json', args)
+
+    # ======= Visual Genome Objects ========
+    #
+    def tsk_visgenobj(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... VisualGenome Objects', indent=4)
+
+        vgobj_path = config.get('VISGEN', 'visgen_12') + '/jsons/objects.json'
+        with open(vgobj_path, 'r') as f:
+            out = []
+            iterator = items(f, 'item')
+            for n, entry in enumerate(tqdm(iterator, total=N_VISGEN_IMG)):
+                image_id = entry['image_id']
+                for obj in entry['objects']:
+                    syn = empty_to_none(obj['synsets'])
+                    names = empty_to_none(obj['names'])
+                    for this_syn in syn:
+                        for this_name in names:
+                            out.append((obj['object_id'],
+                                        image_id,
+                                        this_syn,
+                                        this_name,
+                                        (obj['x'], obj['y'], obj['w'], obj['h'])))
+        vgobj_df = pd.DataFrame(out,
+                                columns='obj_id image_id syn name bb'.split())
+        self._dumpDF(vgobj_df, args.out_dir + '/vgobjdf.json', args)
+
+    # ======= Visual Genome Attributes ========
+    #
+    def tsk_visgenatt(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... VisualGenome Attributes', indent=4)
+
+        vgatt_path = config.get('VISGEN', 'visgen_12') + '/jsons/attributes.json'
+        with open(vgatt_path, 'r') as f:
+            out = []
+            iterator = items(f, 'item')
+            for n, entry in enumerate(tqdm(iterator, total=N_VISGEN_IMG)):
+                image_id = entry['image_id']
+                for obj in entry['attributes']:
+                    if 'attributes' not in obj:
+                        continue
+                    atts = obj['attributes']
+                    out.append((obj['object_id'],
+                                image_id,
+                                atts))
+        vgatt_df = pd.DataFrame(out,
+                                columns='obj_id image_id attributes'.split())
+        self._dumpDF(vgatt_df, args.out_dir + '/vgattdf.json', args)
 
 
 # ======== MAIN =========
@@ -490,7 +577,9 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
-                                 'grexbb', 'visgenreg', 'all'],
+                                 'grexbb', 'visgenreg', 'visgenrel',
+                                 'visgenobj', 'visgenatt',
+                                 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
