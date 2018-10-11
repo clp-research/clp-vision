@@ -123,8 +123,10 @@ def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
 def plot_labelled_bb(impath, bblist, title=None, text_size='large',
                      mode='path', omode='screen', opath=None):
     '''Given the path of an image and a list containing tuples
-    of bounding box (a list of x,y,w,h) and label (str),
+    of bounding box (a list of x,y,w,h) and label info,
     plot these boxes and labels into the image.
+    Label info can be tuple, in which case it is interpreted as
+    (label, colour); otherwise it has to be just a string (the label).
     If mode is path, impath is path, if it is image, impath is the actual
     image on top of which the bbs are to be drawn.
     If omode is screen, assumption is that matplotlib functions are
@@ -144,12 +146,17 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
         for (this_bb, this_label) in bblist:
             x, y, w, h = this_bb
 
+            if type(this_label) == tuple:
+                edgecolor = this_label[1]
+                this_label = this_label[0]
+            else:
+                edgecolor = 'r'
             ax.add_patch(
                 matplotlib.patches.Rectangle(
                     (x, y),
                     w,
                     h,
-                    edgecolor='r',
+                    edgecolor=edgecolor,
                     fill=False, linewidth=4
                 )
             )
