@@ -550,6 +550,33 @@ class TaskFunctions(object):
                                 columns='obj_id image_id attributes'.split())
         self._dumpDF(vgatt_df, args.out_dir + '/vgattdf.json', args)
 
+    # ======= Visual Genome Attributes ========
+    #
+    def tsk_visgenvqa(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... VisualGenome VQAs', indent=4)
+
+        vgvqa_path = config.get('VISGEN', 'visgen_12') + '/jsons/question_answers.json'
+        with open(vgvqa_path, 'r') as f:
+            out = []
+            iterator = items(f, 'item')
+            for n, entry in enumerate(tqdm(iterator, total=N_VISGEN_IMG)):
+                for this_qa in entry['qas']:
+                    out.append((this_qa['image_id'],
+                                this_qa['qa_id'],
+                                this_qa['question'],
+                                this_qa['answer'],
+                                this_qa['q_objects'],
+                                this_qa['a_objects']))
+                if n >= 500:
+                    break
+
+        vgvqa_df = pd.DataFrame(out,
+                                columns='image_id qa_id q a q_objs a_objs'.split())
+        self._dumpDF(vgvqa_df, args.out_dir + '/vgvqadf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -578,7 +605,7 @@ if __name__ == '__main__':
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
                                  'grexbb', 'visgenreg', 'visgenrel',
-                                 'visgenobj', 'visgenatt',
+                                 'visgenobj', 'visgenatt', 'visgenvqa',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
