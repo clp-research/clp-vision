@@ -550,7 +550,7 @@ class TaskFunctions(object):
                                 columns='obj_id image_id attributes'.split())
         self._dumpDF(vgatt_df, args.out_dir + '/vgattdf.json', args)
 
-    # ======= Visual Genome Attributes ========
+    # ======= Visual Genome VQAs ========
     #
     def tsk_visgenvqa(self):
         config = self.config
@@ -570,8 +570,6 @@ class TaskFunctions(object):
                                 this_qa['answer'],
                                 this_qa['q_objects'],
                                 this_qa['a_objects']))
-                if n >= 500:
-                    break
 
         vgvqa_df = pd.DataFrame(out,
                                 columns='image_id qa_id q a q_objs a_objs'.split())
