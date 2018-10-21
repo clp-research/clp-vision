@@ -573,6 +573,17 @@ class TaskFunctions(object):
 
         vgvqa_df = pd.DataFrame(out,
                                 columns='image_id qa_id q a q_objs a_objs'.split())
+        visgenqamap_p = config.get('VISGEN', 'visgen_12') + '/jsons/qa_to_region_mapping.json'
+
+        with open(visgenqamap_p, 'r') as f:
+            vgqamap = json.load(f)
+
+        vgqamap = dict([(int(e[0]), e[1]) for e in vgqamap.items()])
+
+        vgqamap_df = pd.DataFrame(vgqamap.items(), columns='qa_id region_id'.split())
+
+        vgvqa_df = vgvqa_df.merge(vgqamap_df, how='left')
+
         self._dumpDF(vgvqa_df, args.out_dir + '/vgvqadf.json', args)
 
 
