@@ -4,6 +4,15 @@ Pre-compute similarity matrices for images.
 
 Currently implemented: Similarity based on annotation of objects present,
 for MSCOCO and visual genome.
+
+
+TODO:
+- Looks like I can't compute similarity between all ~100k visgen
+  images; process gets killed. (Memory?). Should subsample to some
+  smaller number that works?
+- Also, throw away columns?.. Ah, no.. Well. Could precompile a different
+  format. For each image, only keep the n most similar... Instead of keeping
+  the actual similarity matrix!
 '''
 
 from __future__ import division
@@ -119,8 +128,7 @@ if __name__ == '__main__':
             visgen_objdf = visgen_objdf[~visgen_objdf['syn'].isnull()]
 
             sim_sq, row2imid = get_sim_mat(visgen_objdf, cat_col='syn',
-                                           n_dims=50,
-                                           max_row=10000)
+                                           n_dims=50, max_row=40000)
 
             print_timestamped_message('... compressing and writing to disk')
             np.savez_compressed(outfilename, sim_sq, row2imid)
