@@ -25,6 +25,7 @@ import scipy.io
 import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
+import os
 
 from tqdm import tqdm
 
@@ -586,6 +587,43 @@ class TaskFunctions(object):
 
         self._dumpDF(vgvqa_df, args.out_dir + '/vgvqadf.json', args)
 
+    # ======= Flickr 30k Entities RefDf ========
+    #
+    def tsk_flickrref(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Flickr 30k Entities Refering Expressions', indent=4)
+
+        flckrann_path = config.get('FLICKR', 'flickr_annotations')
+        data = []
+
+        for filename in os.listdir(flckrann_path):
+            sents = []
+            with open('..\Data\Annotations\Flickr30kEntities\Sentences\854749.txt', 'r') as f:
+                for line in f:
+                    sents.append(line)
+
+            this_id = filename.split('.')[0]
+
+            for sentence in sents:
+                row = {}
+                row['image_id'] = this_id
+                row['caption_annotated'] = sentence
+    
+                temp = re.sub('[\]\[\n]','',sentence)
+                row['caption_raw'] = ' '.join([word.lower() for word in temp.split() if not word.startswith('/')])
+            
+                these_entities = []
+                for entity in re.findall('\[.*?\]',sentence):
+                    these_entities.append(re.search('#(.*)/',entity).group(1))
+                row['entities'] = these_entities
+                data.append(row)
+        flickr_refdf = pd.DataFrame(data)
+
+        print len(flickr_refdf)
+
+        self._dumpDF(flickr_refdf, args.out_dir + '/flickr_refdf.json', args)
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -615,6 +653,7 @@ if __name__ == '__main__':
                                  'grex', 'saiaprbb', 'mscocobb',
                                  'grexbb', 'visgenreg', 'visgenrel',
                                  'visgenobj', 'visgenatt', 'visgenvqa',
+                                 'flickrbb', 'flickrref',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
