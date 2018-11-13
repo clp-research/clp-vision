@@ -14,6 +14,7 @@ import argparse
 import re
 import ConfigParser
 import codecs
+import xml.etree.ElementTree as ET
 import json
 from ijson import items
 import cPickle as pickle
@@ -600,7 +601,7 @@ class TaskFunctions(object):
 
         for filename in os.listdir(flckrann_path):
             sents = []
-            with open('..\Data\Annotations\Flickr30kEntities\Sentences\854749.txt', 'r') as f:
+            with open(flckrbb_path+'/'+filename, 'r') as f:
                 for line in f:
                     sents.append(line)
 
@@ -621,9 +622,44 @@ class TaskFunctions(object):
                 data.append(row)
         flickr_refdf = pd.DataFrame(data)
 
-        print len(flickr_refdf)
-
         self._dumpDF(flickr_refdf, args.out_dir + '/flickr_refdf.json', args)
+		
+		
+	# ======= Flickr 30k Entities BBDf ========
+    #
+    def tsk_flickrbb(self):
+		config = self.config
+		args = self.args
+		
+		print_timestamped_message('... Flickr 30k Entities Bounding Boxes', indent=4)
+
+		flckrbb_path = config.get('FLICKR', 'flickr_annotations')
+		
+		rows = []
+		corpus_id = 8
+		
+		for filename in os.listdir(flckrbb_path):
+			tree = ET.parse(flckrbb_path+'/'+filename)
+			root = tree.getroot()
+
+			for obj in root.findall('object'):
+				if obj.find('bndbox') is not None:
+					row = {}
+					row['corpus_id'] = corpus_id
+					row['region_id'] = obj.find('name').text
+					
+					#need to go from top-right coordinates to width, height
+					coords = [c for c in obj.find('bndbox')]
+					x = int(coords[0].text)
+					y = int(coords[1].text)
+					w = int(coords[2].text) - x
+					h = int(coords[3].text) - y
+					row['bb'] = [x,y,w,h]
+					
+					rows.append(row)
+		flickr_bbdf = pd.DataFrame(rows)
+
+		self._dumpDF(flickr_bbdf, args.out_dir + '/flickr_bbdf.json', args)
 
 # ======== MAIN =========
 if __name__ == '__main__':

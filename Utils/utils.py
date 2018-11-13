@@ -17,7 +17,8 @@ icorpus_code = {
     'image_net': 4,        # ImageNet; with bbs
     'visual_genome': 5,    # VG, images and regions from visual genome
     'ade_20k': 6,          # ADE, images from ade 20k corpus
-    'tingdataset': 7  # https://tingh.github.io/resources/object_description
+    'tingdataset': 7,  # https://tingh.github.io/resources/object_description
+	'flickr_30k':8		#flickr 30k Entities
     }
 
 code_icorpus = {item: key for key, item in icorpus_code.items()}
