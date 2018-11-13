@@ -590,18 +590,18 @@ class TaskFunctions(object):
 
     # ======= Flickr 30k Entities RefDf ========
     #
-    def tsk_flickrref(self):
+    def tsk_flickrcap(self):
         config = self.config
         args = self.args
 
-        print_timestamped_message('... Flickr 30k Entities Refering Expressions', indent=4)
+        print_timestamped_message('... Flickr 30k Entities Captions', indent=4)
 
-        flckrann_path = config.get('FLICKR', 'flickr_annotations')
-        data = []
+        flckrsent_path = config.get('FLICKR', 'flickr_sentences')
+        out = []
 
-        for filename in os.listdir(flckrann_path):
+        for filename in os.listdir(flckrsent_path):
             sents = []
-            with open(flckrbb_path+'/'+filename, 'r') as f:
+            with open(flckrsent_path+'/'+filename, 'r') as f:
                 for line in f:
                     sents.append(line)
 
@@ -619,10 +619,10 @@ class TaskFunctions(object):
                 for entity in re.findall('\[.*?\]',sentence):
                     these_entities.append(re.search('#(.*)/',entity).group(1))
                 row['entities'] = these_entities
-                data.append(row)
-        flickr_refdf = pd.DataFrame(data)
+                out.append(row)
+        flickr_capdf = pd.DataFrame(out)
 
-        self._dumpDF(flickr_refdf, args.out_dir + '/flickr_refdf.json', args)
+        self._dumpDF(flickr_capdf, args.out_dir + '/flickr_capdf.json', args)
 		
 		
 	# ======= Flickr 30k Entities BBDf ========
@@ -635,17 +635,20 @@ class TaskFunctions(object):
 
 		flckrbb_path = config.get('FLICKR', 'flickr_annotations')
 		
-		rows = []
+		out = []
 		corpus_id = 8
 		
 		for filename in os.listdir(flckrbb_path):
 			tree = ET.parse(flckrbb_path+'/'+filename)
 			root = tree.getroot()
+			
+			this_id = filename.split('.')[0]
 
 			for obj in root.findall('object'):
 				if obj.find('bndbox') is not None:
 					row = {}
 					row['corpus_id'] = corpus_id
+					row['image_id'] = this_id
 					row['region_id'] = obj.find('name').text
 					
 					#need to go from top-right coordinates to width, height
@@ -656,8 +659,8 @@ class TaskFunctions(object):
 					h = int(coords[3].text) - y
 					row['bb'] = [x,y,w,h]
 					
-					rows.append(row)
-		flickr_bbdf = pd.DataFrame(rows)
+					out.append(row)
+		flickr_bbdf = pd.DataFrame(out)
 
 		self._dumpDF(flickr_bbdf, args.out_dir + '/flickr_bbdf.json', args)
 
@@ -689,7 +692,7 @@ if __name__ == '__main__':
                                  'grex', 'saiaprbb', 'mscocobb',
                                  'grexbb', 'visgenreg', 'visgenrel',
                                  'visgenobj', 'visgenatt', 'visgenvqa',
-                                 'flickrbb', 'flickrref',
+                                 'flickrbb', 'flickrcap',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
