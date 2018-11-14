@@ -18,7 +18,7 @@ icorpus_code = {
     'visual_genome': 5,    # VG, images and regions from visual genome
     'ade_20k': 6,          # ADE, images from ade 20k corpus
     'tingdataset': 7,  # https://tingh.github.io/resources/object_description
-	'flickr_30k':8		#flickr 30k Entities
+    'flickr_30k': 8	   # flickr 30k Entities
     }
 
 code_icorpus = {item: key for key, item in icorpus_code.items()}
@@ -83,6 +83,11 @@ def visgen_image_filename(config, image_id):
     return full_path
 
 
+def flickr_image_filename(config, image_id):
+    flickr_image_root = config.get('FLICKR', 'flickr_images')
+    return flickr_image_root + '/' + str(image_id) + '.jpg'
+
+
 def join_imagenet_id(image_id, region_id):
     return 'n%08d_%d' % (image_id, region_id)
 
@@ -94,6 +99,8 @@ def get_image_filename(config, icorp, image_id):
         return mscoco_image_filename(config, image_id)
     if code_icorpus[icorp] == 'visual_genome':
         return visgen_image_filename(config, image_id)
+    if code_icorpus[icorp] == 'flickr_30k':
+        return flickr_image_filename(config, image_id)
     raise ValueError('Unknown corpus code')
 
 
