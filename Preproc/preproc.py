@@ -669,9 +669,9 @@ class TaskFunctions(object):
         multi_objs = counts[counts == True]
 
         for i in multi_objs.index:
-            ix = 0
+            ix = 1
             for n, row in flickr_bbdf[flickr_bbdf.region_id == i].iterrows():
-                flickr_bbdf.at[n,'subregion_id'] = row[3]+0.01*ix
+                flickr_bbdf.at[n, 'subregion_id'] = row[3]+0.01*ix
                 ix += 1
         flickr_bbdf.subregion_id = flickr_bbdf.subregion_id.astype('float')
 
