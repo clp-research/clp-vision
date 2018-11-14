@@ -651,7 +651,7 @@ class TaskFunctions(object):
                     row = {}
                     row['i_corpus'] = corpus_id
                     row['image_id'] = this_id
-                    row['region_id'] = obj.find('name').text
+                    row['region_id'] = int(obj.find('name').text)
 
                     #need to go from top-right coordinates to width, height
                     coords = [c for c in obj.find('bndbox')]
@@ -663,6 +663,17 @@ class TaskFunctions(object):
 
                     out.append(row)
         flickr_bbdf = pd.DataFrame(out)
+
+        flickr_bbdf['subregion_id'] = None
+        counts = flickr_bbdf['region_id'].value_counts() > 1
+        multi_objs = counts[counts == True]
+
+        for i in multi_objs.index:
+            ix = 0
+            for n, row in flickr_bbdf[flickr_bbdf.region_id == i].iterrows():
+                flickr_bbdf.at[n,'subregion_id'] = row[3]+0.01*ix
+                ix += 1
+        flickr_bbdf.subregion_id = flickr_bbdf.subregion_id.astype('float')
 
         self._dumpDF(flickr_bbdf, args.out_dir + '/flickr_bbdf.json', args)
 
