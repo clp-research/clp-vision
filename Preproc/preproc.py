@@ -611,58 +611,58 @@ class TaskFunctions(object):
                 row = {}
                 row['image_id'] = this_id
                 row['caption_annotated'] = sentence
-    
-                temp = re.sub('[\]\[\n]','',sentence)
+
+                temp = re.sub('[\]\[\n]', '', sentence)
                 row['caption_raw'] = ' '.join([word.lower() for word in temp.split() if not word.startswith('/')])
             
                 these_entities = []
-                for entity in re.findall('\[.*?\]',sentence):
-                    these_entities.append(re.search('#(.*)/',entity).group(1))
+                for entity in re.findall('\[.*?\]', sentence):
+                    these_entities.append(re.search('#(.*)/', entity).group(1))
                 row['entities'] = these_entities
                 out.append(row)
         flickr_capdf = pd.DataFrame(out)
 
         self._dumpDF(flickr_capdf, args.out_dir + '/flickr_capdf.json', args)
-		
-		
-	# ======= Flickr 30k Entities BBDf ========
+
+    # ======= Flickr 30k Entities BBDf ========
     #
     def tsk_flickrbb(self):
-		config = self.config
-		args = self.args
-		
-		print_timestamped_message('... Flickr 30k Entities Bounding Boxes', indent=4)
+        config = self.config
+        args = self.args
 
-		flckrbb_path = config.get('FLICKR', 'flickr_annotations')
-		
-		out = []
-		corpus_id = 8
-		
-		for filename in os.listdir(flckrbb_path):
-			tree = ET.parse(flckrbb_path+'/'+filename)
-			root = tree.getroot()
-			
-			this_id = filename.split('.')[0]
+        print_timestamped_message('... Flickr 30k Entities Bounding Boxes', indent=4)
 
-			for obj in root.findall('object'):
-				if obj.find('bndbox') is not None:
-					row = {}
-					row['corpus_id'] = corpus_id
-					row['image_id'] = this_id
-					row['region_id'] = obj.find('name').text
-					
-					#need to go from top-right coordinates to width, height
-					coords = [c for c in obj.find('bndbox')]
-					x = int(coords[0].text)
-					y = int(coords[1].text)
-					w = int(coords[2].text) - x
-					h = int(coords[3].text) - y
-					row['bb'] = [x,y,w,h]
-					
-					out.append(row)
-		flickr_bbdf = pd.DataFrame(out)
+        flckrbb_path = config.get('FLICKR', 'flickr_annotations')
 
-		self._dumpDF(flickr_bbdf, args.out_dir + '/flickr_bbdf.json', args)
+        out = []
+        corpus_id = 8
+
+        for filename in os.listdir(flckrbb_path):
+                tree = ET.parse(flckrbb_path+'/'+filename)
+                root = tree.getroot()
+
+                this_id = filename.split('.')[0]
+
+                for obj in root.findall('object'):
+                        if obj.find('bndbox') is not None:
+                                row = {}
+                                row['corpus_id'] = corpus_id
+                                row['image_id'] = this_id
+                                row['region_id'] = obj.find('name').text
+
+                                # need to go from top-right coordinates to width, height
+                                coords = [c for c in obj.find('bndbox')]
+                                x = int(coords[0].text)
+                                y = int(coords[1].text)
+                                w = int(coords[2].text) - x
+                                h = int(coords[3].text) - y
+                                row['bb'] = [x, y, w, h]
+
+                                out.append(row)
+        flickr_bbdf = pd.DataFrame(out)
+
+        self._dumpDF(flickr_bbdf, args.out_dir + '/flickr_bbdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
