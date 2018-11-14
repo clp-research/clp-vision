@@ -615,12 +615,14 @@ class TaskFunctions(object):
                 row['caption_annotated'] = sentence
 
                 temp = re.sub(r'[\]\[\n]', '', sentence)
+
                 row['caption_raw'] = ' '.join([word.lower() for word in temp.split() if not word.startswith('/')])
 
                 these_entities = []
                 for entity in re.findall(r'\[.*?\]', sentence):
                     these_entities.append(re.search(r'#([0-9]+)/', entity).group(1))
                 row['entities'] = [int(e) for e in these_entities]
+
                 out.append(row)
         flickr_capdf = pd.DataFrame(out)
 
@@ -676,6 +678,7 @@ class TaskFunctions(object):
         flickr_bbdf.subregion_id = flickr_bbdf.subregion_id.astype('float')
 
         self._dumpDF(flickr_bbdf, args.out_dir + '/flickr_bbdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
