@@ -626,7 +626,9 @@ class TaskFunctions(object):
                 out.append(row)
         flickr_capdf = pd.DataFrame(out)
 
-        self._dumpDF(flickr_capdf, args.out_dir + '/flickr_capdf.json', args)
+        column_order = 'i_corpus image_id caption_annotated caption_raw entities'.split()
+        self._dumpDF(flickr_capdf[column_order],
+                     args.out_dir + '/flickr_capdf.json', args)
 
     # ======= Flickr 30k Entities BBDf ========
     #
@@ -665,18 +667,20 @@ class TaskFunctions(object):
                     out.append(row)
         flickr_bbdf = pd.DataFrame(out)
 
-        flickr_bbdf['subregion_id'] = None
+        flickr_bbdf['subregion_id'] = 1
         counts = flickr_bbdf['region_id'].value_counts() > 1
         multi_objs = counts[counts == True]
 
         for i in multi_objs.index:
             ix = 1
             for n, row in flickr_bbdf[flickr_bbdf.region_id == i].iterrows():
-                flickr_bbdf.at[n, 'subregion_id'] = row[3]+0.01*ix
+                flickr_bbdf.at[n, 'subregion_id'] = ix
                 ix += 1
         flickr_bbdf.subregion_id = flickr_bbdf.subregion_id.astype('float')
 
-        self._dumpDF(flickr_bbdf, args.out_dir + '/flickr_bbdf.json', args)
+        column_order = 'i_corpus image_id region_id subregion_id bb'.split()
+        self._dumpDF(flickr_bbdf[column_order],
+                     args.out_dir + '/flickr_bbdf.json', args)
 
 
 # ======== MAIN =========
