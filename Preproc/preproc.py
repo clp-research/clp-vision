@@ -588,8 +588,8 @@ class TaskFunctions(object):
 
         self._dumpDF(vgvqa_df, args.out_dir + '/vgvqadf.json', args)
 
-	# ======= Flickr 30k Entities CapDf ========
-	#
+    # ======= Flickr 30k Entities CapDf ========
+    #
     def tsk_flickrcap(self):
         config = self.config
         args = self.args
@@ -598,7 +598,7 @@ class TaskFunctions(object):
 
         flckrsent_path = config.get('FLICKR', 'flickr_sentences')
         out = []
-        corpus_id = 8
+        corpus_id = icorpus_code['flickr_30k']
 
         for filename in os.listdir(flckrsent_path):
             sents = []
@@ -628,8 +628,7 @@ class TaskFunctions(object):
 
         self._dumpDF(flickr_capdf, args.out_dir + '/flickr_capdf.json', args)
 
-
-	# ======= Flickr 30k Entities BBDf ========
+    # ======= Flickr 30k Entities BBDf ========
     #
     def tsk_flickrbb(self):
         config = self.config
@@ -640,7 +639,7 @@ class TaskFunctions(object):
         flckrbb_path = config.get('FLICKR', 'flickr_annotations')
 
         out = []
-        corpus_id = 8
+        corpus_id = icorpus_code['flickr_30k']
 
         for filename in os.listdir(flckrbb_path):
             tree = ET.parse(flckrbb_path+'/'+filename)
@@ -655,7 +654,7 @@ class TaskFunctions(object):
                     row['image_id'] = this_id
                     row['region_id'] = int(obj.find('name').text)
 
-                    #need to go from top-right coordinates to width, height
+                    # need to go from top-right coordinates to width, height
                     coords = [c for c in obj.find('bndbox')]
                     x = int(coords[0].text)
                     y = int(coords[1].text)
