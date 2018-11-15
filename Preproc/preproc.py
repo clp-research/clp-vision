@@ -682,6 +682,30 @@ class TaskFunctions(object):
         self._dumpDF(flickr_bbdf[column_order],
                      args.out_dir + '/flickr_bbdf.json', args)
 
+    # ======= Flickr 30k Objects DF ========
+    #
+    def tsk_flickrobj(self):
+        args = self.args
+
+        print_timestamped_message('... Flickr 30k Entities Objects', indent=4)
+
+        # this requires flickr_capdf to be present in the default out dir
+        flickr_capdf = pd.read_json(args.out_dir + '/flickr_capdf.json.gz',
+                                    typ='frame', orient='split',
+                                    compression='gzip')
+        out = []
+        for _, row in flickr_capdf.iterrows():
+            ic, ii = row['i_corpus image_id'.split()]
+            for phrase in re.findall(r'\[.*?\]', row['caption_annotated']):
+                entity_markup, phrase_text = phrase.split(' ', 1)
+                phrase_text = phrase_text[:-1]
+                _, entity_id, cat = entity_markup.split('/', 2)
+                _, entity_id = entity_id.split('#')
+                out.append((ic, ii, entity_id, phrase_text, cat))
+        columns = 'i_corpus image_id region_id phrase cat'.split()
+        flickr_obdf = pd.DataFrame(out, columns=columns)
+        self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -711,7 +735,7 @@ if __name__ == '__main__':
                                  'grex', 'saiaprbb', 'mscocobb',
                                  'grexbb', 'visgenreg', 'visgenrel',
                                  'visgenobj', 'visgenatt', 'visgenvqa',
-                                 'flickrbb', 'flickrcap',
+                                 'flickrbb', 'flickrcap', 'flickrobj',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
