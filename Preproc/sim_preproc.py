@@ -38,6 +38,11 @@ from utils import print_timestamped_message, code_icorpus
 MAX_ROWS = 30000  # max images to compare. beyond it gets too slow.
 
 
+def load_imsim(path):
+    npl = np.load(path)
+    return npl['arr_0'], dict(npl['arr_1'].tolist())
+
+
 def n_most_sim(obsims, row2imid, target_row, n=3):
     '''
     Utility function for looking up a similarity ranking in the
