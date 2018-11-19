@@ -7,10 +7,11 @@ for MSCOCO and visual genome.
 
 
 TODO:
-- Looks like I can't compute similarity between all ~100k visgen
+x Looks like I can't compute similarity between all ~100k visgen
   images; process gets killed. (Memory?). Should subsample to some
-  smaller number that works?
-- Also, throw away columns?.. Ah, no.. Well. Could precompile a different
+  smaller number that works? Or do batches within which similarity is
+  computed? (So that for each image there is a set of distractors.)
+x Also, throw away columns?.. Ah, no.. Well. Could precompile a different
   format. For each image, only keep the n most similar... Instead of keeping
   the actual similarity matrix!
 '''
