@@ -212,7 +212,7 @@ if __name__ == '__main__':
     if args.out_dir:
         out_dir = args.out_dir
     elif config.has_option('DSGV-PATHS', 'extract_out_dir'):
-        out_dir = config.get('DSGV-PATHS', 'extract_out__dir')
+        out_dir = config.get('DSGV-PATHS', 'extract_out_dir')
     else:
         out_dir = './ExtractOut'
 
