@@ -757,6 +757,8 @@ if __name__ == '__main__':
 
     tfs = TaskFunctions(targs, config)
 
+    # FIXME: must be specified manually, unfortunately, as there
+    #  are dependencies between the tasks.
     if 'all' in args.task:
         available_tasks = [this_method.replace('tsk_', '')
                            for this_method in dir(tfs)
