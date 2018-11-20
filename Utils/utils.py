@@ -111,14 +111,17 @@ def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
         this_path = get_image_filename(config, i_corpus, image_id)
         img = plt.imread(this_path)
 
-    # need to clip bounding box to 0, because the google region
-    #   weirdly sometimes have negative coordinates (?!):
-    x, y, w, h = np.clip(np.array(bb), 0, np.max(img.shape))
-    w = img.shape[1]-x if x+w >= img.shape[1] else w
-    h = img.shape[0]-y if y+h >= img.shape[0] else h
-    # print 'after', x,y,w,h,
+    if bb is None:
+        img_cropped = img
+    else:
+        # need to clip bounding box to 0, because the google region
+        #   weirdly sometimes have negative coordinates (?!):
+        x, y, w, h = np.clip(np.array(bb), 0, np.max(img.shape))
+        w = img.shape[1]-x if x+w >= img.shape[1] else w
+        h = img.shape[0]-y if y+h >= img.shape[0] else h
+        # print 'after', x,y,w,h,
+        img_cropped = img[int(y):int(y+h), int(x):int(x+w)]
 
-    img_cropped = img[int(y):int(y+h), int(x):int(x+w)]
     if resize:
         pim = PImage.fromarray(img_cropped)
         pim2 = pim.resize((xs, ys), PImage.ANTIALIAS)

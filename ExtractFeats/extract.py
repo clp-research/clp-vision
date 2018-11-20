@@ -16,6 +16,8 @@ from os.path import isfile
 import pandas as pd
 import numpy as np
 
+from tqdm import tqdm
+
 from keras.models import Model
 from keras import backend
 
@@ -27,6 +29,10 @@ backend.set_image_data_format('channels_last')
 
 
 def compute_posfeats(img, bb):
+    n_pos_feats = 7
+    if bb is None:
+        return np.zeros(n_pos_feats)
+
     ih, iw, _ = img.shape
     x, y, w, h = bb
     # x1, relative
@@ -54,14 +60,14 @@ def compute_posfeats(img, bb):
 def compute_feats(config, bbdf, model, preproc,
                   xs=224, ys=224, batch_size=100):
 
-    # N.B.: This makes the assumption that the bbdf only contains
-    #  info about a single i_corpus, at least as far as the
-    #  naming is concerned.
-    this_icorpus = bbdf.iloc[0]['i_corpus']
+    full_image = True if config.get('runtime', 'full_image') == 'True' else False
+
     filename = config.get('runtime', 'out_dir') +\
         '/%s_%s' % (
-            code_icorpus[this_icorpus],
+            config.get('runtime', 'this_bbdf'),
             config.get('runtime', 'model'))
+    if full_image:
+        filename += '_fi'
     if isfile(filename + '.npz'):
         print '%s exists. Will not overwrite. ABORTING.' % (filename + '.npz')
         return
@@ -74,14 +80,21 @@ def compute_feats(config, bbdf, model, preproc,
 
     X_out = []
 
-    # FIXME, for debugging only! Reduced size or starting with offset
-    # bbdf = bbdf[:1000]
+    if full_image:
+        bbdf = bbdf.drop_duplicates(subset='image_id')
 
-    for n, row in bbdf.iterrows():
+    # FIXME, for debugging only! Reduced size or starting with offset
+    # bbdf = bbdf[:100]
+
+    for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
         this_image_id = row['image_id']
         this_region_id = row['region_id']
         this_bb = row['bb']
+
+        if full_image:
+            this_bb = None
+            this_region_id = 0
 
         #  When extracting feats for imagenet regions, must
         #  - create combined filename out of image_id and region_id
@@ -96,7 +109,7 @@ def compute_feats(config, bbdf, model, preproc,
             this_image_id_mod = this_image_id
             this_bb_mod = this_bb
 
-        if np.min(this_bb_mod[2:]) <= 0:
+        if this_bb_mod and np.min(this_bb_mod[2:]) <= 0:
             print 'skipping over this image (%s,%d). Negative bb! %s' % \
                 (code_icorpus[this_icorpus], this_image_id, str(this_bb_mod))
             continue
@@ -120,13 +133,6 @@ def compute_feats(config, bbdf, model, preproc,
 
         # is it time to do the actual extraction on this batch
         if (n+1) % batch_size == 0 or n+1 == len(bbdf):
-            # filename = basetemplate_tmp %\
-            #            (code_icorpus[this_icorpus],
-            #             config.get('runtime', 'model'),
-            #             file_counter)
-            # print_timestamped_message('new batch! %d %d %s' %
-            #                           (n, file_counter, filename),
-            #                           indent=4)
             print_timestamped_message('new batch! (%d %d) Extracting!...' %
                                       (file_counter, n), indent=4)
 
@@ -183,6 +189,9 @@ if __name__ == '__main__':
                         default: 100''',
                         type=int,
                         default=100)
+    parser.add_argument('-f', '--full_image',
+                        action='store_true',
+                        help='Extract whole image, ignore BBs.')
     parser.add_argument('model',
                         choices=['vgg19-fc2', 'rsn50-fl1'],
                         help='''
@@ -221,6 +230,8 @@ if __name__ == '__main__':
 
     print bbdf_dir, out_dir
 
+    config.set('runtime', 'full_image', str(args.full_image))
+
     # default dimensions
     xs, ys = 224, 224
 
@@ -231,7 +242,6 @@ if __name__ == '__main__':
     if arch == 'vgg19':
         from keras.applications.vgg19 import VGG19
         from keras.applications.vgg19 import preprocess_input as preproc
-        # from keras.applications.vgg19 import preprocess_input as preproc
         base_model = VGG19(weights='imagenet')
         model = Model(inputs=base_model.input,
                       outputs=base_model.get_layer(layer).output)
@@ -255,6 +265,8 @@ if __name__ == '__main__':
             bbdf = pd.read_json(this_bbdf_base,
                                 orient='split')
         print this_bbdf_path
+
+        config.set('runtime', 'this_bbdf', this_bbdf)
 
         compute_feats(config, bbdf, model, preproc,
                       xs=xs, ys=ys, batch_size=args.size_batch)
