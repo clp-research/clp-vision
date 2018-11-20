@@ -83,13 +83,18 @@ def compute_feats(config, bbdf, model, preproc,
     if full_image:
         bbdf = bbdf.drop_duplicates(subset='image_id')
 
+    if 'region_id' in bbdf.columns:
+        reg_col = 'region_id'
+    if 'object_id' in bbdf.columns:
+        reg_col = 'obj_id'
+
     # FIXME, for debugging only! Reduced size or starting with offset
-    # bbdf = bbdf[:100]
+    bbdf = bbdf[:100]
 
     for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
         this_image_id = row['image_id']
-        this_region_id = row['region_id']
+        this_region_id = row[reg_col]
         this_bb = row['bb']
 
         if full_image:
