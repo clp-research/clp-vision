@@ -766,7 +766,6 @@ if __name__ == '__main__':
 
     print_timestamped_message('starting to preprocess...')
 
-    # TODO: 'all' task, runs all tsk_ functions.. look in dir(tfs)
     for task in args.task:
         tfs.exec_task(task)
 
