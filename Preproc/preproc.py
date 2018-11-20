@@ -505,6 +505,8 @@ class TaskFunctions(object):
         config = self.config
         args = self.args
 
+        corpus_id = icorpus_code['visual_genome']
+
         print_timestamped_message('... VisualGenome Objects', indent=4)
 
         vgobj_path = config.get('VISGEN', 'visgen_12') + '/jsons/objects.json'
@@ -518,13 +520,14 @@ class TaskFunctions(object):
                     names = empty_to_none(obj['names'])
                     for this_syn in syn:
                         for this_name in names:
-                            out.append((obj['object_id'],
+                            out.append((corpus_id,
                                         image_id,
+                                        obj['object_id'],
                                         this_syn,
                                         this_name,
                                         (obj['x'], obj['y'], obj['w'], obj['h'])))
         vgobj_df = pd.DataFrame(out,
-                                columns='obj_id image_id syn name bb'.split())
+                                columns='i_corpus image_id obj_id syn name bb'.split())
         self._dumpDF(vgobj_df, args.out_dir + '/vgobjdf.json', args)
 
     # ======= Visual Genome Attributes ========
@@ -532,6 +535,8 @@ class TaskFunctions(object):
     def tsk_visgenatt(self):
         config = self.config
         args = self.args
+
+        corpus_id = icorpus_code['visual_genome']
 
         print_timestamped_message('... VisualGenome Attributes', indent=4)
 
@@ -545,11 +550,12 @@ class TaskFunctions(object):
                     if 'attributes' not in obj:
                         continue
                     atts = obj['attributes']
-                    out.append((obj['object_id'],
+                    out.append((corpus_id,
                                 image_id,
+                                obj['object_id'],
                                 atts))
         vgatt_df = pd.DataFrame(out,
-                                columns='obj_id image_id attributes'.split())
+                                columns='i_corpus image_id obj_id attributes'.split())
         self._dumpDF(vgatt_df, args.out_dir + '/vgattdf.json', args)
 
     # ======= Visual Genome VQAs ========
