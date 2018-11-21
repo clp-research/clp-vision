@@ -67,7 +67,7 @@ def compute_feats(config, bbdf, model, preproc,
             config.get('runtime', 'this_bbdf'),
             config.get('runtime', 'model'))
     if full_image:
-        filename += '_fi'
+        filename += '-fi'
     if isfile(filename + '.npz'):
         print '%s exists. Will not overwrite. ABORTING.' % (filename + '.npz')
         return
@@ -89,7 +89,7 @@ def compute_feats(config, bbdf, model, preproc,
         reg_col = 'obj_id'
 
     # FIXME, for debugging only! Reduced size or starting with offset
-    bbdf = bbdf[:100]
+    bbdf = bbdf[:1000]
 
     for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                         action='store_true',
                         help='Extract whole image, ignore BBs.')
     parser.add_argument('model',
-                        choices=['vgg19-fc2', 'rsn50-fl1'],
+                        choices=['vgg19-fc2', 'rsn50-avg_pool', 'rsn50-flatten_1'],
                         help='''
                         Which model/layer to use for extraction.''')
     parser.add_argument('bbdf',
@@ -248,6 +248,12 @@ if __name__ == '__main__':
         from keras.applications.vgg19 import VGG19
         from keras.applications.vgg19 import preprocess_input as preproc
         base_model = VGG19(weights='imagenet')
+        model = Model(inputs=base_model.input,
+                      outputs=base_model.get_layer(layer).output)
+    if arch == 'rsn50':
+        from keras.applications.resnet50 import ResNet50
+        from keras.applications.resnet50 import preprocess_input as preproc
+        base_model = ResNet50(weights='imagenet')
         model = Model(inputs=base_model.input,
                       outputs=base_model.get_layer(layer).output)
 
