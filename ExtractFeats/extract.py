@@ -84,19 +84,24 @@ def compute_feats(config, bbdf, model, preproc,
         bbdf = bbdf.drop_duplicates(subset='image_id')
         bbdf = bbdf.reset_index()
 
-    if 'region_id' in bbdf.columns:
+    if 'region_id' in bbdf.columns:  # default
         reg_col = 'region_id'
-    if 'object_id' in bbdf.columns:
+    if 'object_id' in bbdf.columns:  # some visgen bbdfs
         reg_col = 'obj_id'
+    if 'subregion_id' in bbdf.columns:  # Flickr30k
+        subreg = True
+    else:
+        subreg = False
 
     # FIXME, for debugging only! Reduced size or starting with offset
-    # bbdf = bbdf[:1000]
+    # bbdf = bbdf[:100]
 
-    #  for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
-    for n, row in bbdf.iterrows():
+    for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
         this_image_id = row['image_id']
         this_region_id = row[reg_col]
+        if subreg:  # this means that we are reading in Flickr30k...
+            this_region_id = row[reg_col] + row['subregion_id'] / 100
         this_bb = row['bb']
 
         if full_image:
@@ -241,7 +246,8 @@ if __name__ == '__main__':
     print bbdf_dir, out_dir
 
     config.set('runtime', 'full_image', str(args.full_image))
-    print "Full Image Mode Selected! Extraction will take whole image as input."
+    if args.full_image == 'True':
+        print "Full Image Mode Selected! Extraction will take whole image as input."
 
     # default dimensions
     xs, ys = 224, 224
