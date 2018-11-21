@@ -472,6 +472,8 @@ class TaskFunctions(object):
         config = self.config
         args = self.args
 
+        corpus_id = icorpus_code['visual_genome']
+
         print_timestamped_message('... VisualGenome Relationships', indent=4)
 
         vgrel_path = config.get('VISGEN', 'visgen_12') + '/jsons/relationships.json'
@@ -487,16 +489,17 @@ class TaskFunctions(object):
                     for this_rel in rel_syn:
                         for this_sub in sub_syn:
                             for this_obj in obj_syn:
-                                out.append((this_rel,
+                                out.append((corpus_id,
+                                            image_id,
+                                            this_rel,
                                             rel['predicate'],
                                             rel['relationship_id'],
                                             this_sub,
                                             rel['subject']['object_id'],
                                             this_obj,
-                                            rel['object']['object_id'],
-                                            image_id))
+                                            rel['object']['object_id']))
         vgrel_df = pd.DataFrame(out,
-                                columns='rel_syn predicate rel_id sub_syn sub_id obj_syn obj_id image_id'.split())
+                                columns='i_corpus image_id rel_syn predicate rel_id sub_syn sub_id obj_syn obj_id'.split())
         self._dumpDF(vgrel_df, args.out_dir + '/vgreldf.json', args)
 
     # ======= Visual Genome Objects ========
@@ -564,6 +567,8 @@ class TaskFunctions(object):
         config = self.config
         args = self.args
 
+        corpus_id = icorpus_code['visual_genome']
+
         print_timestamped_message('... VisualGenome VQAs', indent=4)
 
         vgvqa_path = config.get('VISGEN', 'visgen_12') + '/jsons/question_answers.json'
@@ -572,7 +577,8 @@ class TaskFunctions(object):
             iterator = items(f, 'item')
             for n, entry in enumerate(tqdm(iterator, total=N_VISGEN_IMG)):
                 for this_qa in entry['qas']:
-                    out.append((this_qa['image_id'],
+                    out.append((corpus_id,
+                                this_qa['image_id'],
                                 this_qa['qa_id'],
                                 this_qa['question'],
                                 this_qa['answer'],
@@ -580,7 +586,7 @@ class TaskFunctions(object):
                                 this_qa['a_objects']))
 
         vgvqa_df = pd.DataFrame(out,
-                                columns='image_id qa_id q a q_objs a_objs'.split())
+                                columns='i_corpus image_id qa_id q a q_objs a_objs'.split())
         visgenqamap_p = config.get('VISGEN', 'visgen_12') + '/jsons/qa_to_region_mapping.json'
 
         with open(visgenqamap_p, 'r') as f:
