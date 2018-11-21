@@ -82,6 +82,7 @@ def compute_feats(config, bbdf, model, preproc,
 
     if full_image:
         bbdf = bbdf.drop_duplicates(subset='image_id')
+        bbdf = bbdf.reset_index()
 
     if 'region_id' in bbdf.columns:
         reg_col = 'region_id'
@@ -91,7 +92,8 @@ def compute_feats(config, bbdf, model, preproc,
     # FIXME, for debugging only! Reduced size or starting with offset
     # bbdf = bbdf[:1000]
 
-    for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
+    #  for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
+    for n, row in bbdf.iterrows():
         this_icorpus = row['i_corpus']
         this_image_id = row['image_id']
         this_region_id = row[reg_col]
@@ -156,7 +158,10 @@ def compute_feats(config, bbdf, model, preproc,
             X_ids = np.array(ids)
             X_pos = np.array(X_pos)
             print X_ids.shape, X.shape, X_pos.shape
-            X_out.append(np.hstack([X_ids, X, X_pos]))
+            if full_image:
+                X_out.append(np.hstack([X_ids, X]))
+            else:
+                X_out.append(np.hstack([X_ids, X, X_pos]))
 
             ids = []
             X_pos = []
@@ -236,6 +241,7 @@ if __name__ == '__main__':
     print bbdf_dir, out_dir
 
     config.set('runtime', 'full_image', str(args.full_image))
+    print "Full Image Mode Selected! Extraction will take whole image as input."
 
     # default dimensions
     xs, ys = 224, 224
