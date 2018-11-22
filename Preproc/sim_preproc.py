@@ -36,6 +36,7 @@ MAX_ROWS_IMG = 10000  # max n to compare based on img features
 
 # The first features in the image feature Xs encode the region ID
 ID_FEATS = 3
+ImID_Feat = 1  # and the image_id lives in this position
 
 
 def load_imsim(path):
@@ -134,7 +135,36 @@ def run_objects_sim(bbdf_dir, this_corp):
         np.savez_compressed(outfilename, sim_sq, row2imid)
 
 
-# ======== MAIN =========
+def run_visual_sim(imfeat_dir, bbdf_dir, this_corp, n_most=200):
+    print_timestamped_message('Computing vis sims for %s' % (this_corp))
+
+    if this_corp == 'visgen':
+        featfilename = 'vgregdf_rsn50-flatten_1-fi.npz'
+        outfilename = bbdf_dir + '/visgen_vis_sim'
+    if this_corp == 'mscoco':
+        featfilename = 'mscoco_bbdf_rsn50-flatten_1-fi.npz'
+        outfilename = bbdf_dir + '/mscoco_vis_sim'
+
+    if isfile(outfilename + '.npz'):
+        print '%s exists. Will not overwrite. ABORTING.' % (outfilename + '.npz')
+        return
+
+    print_timestamped_message('Loading up X')
+
+    X_full = np.load(imfeat_dir + '/' + featfilename)['arr_0']
+    X_ids = X_full[:, :ID_FEATS]
+    X = X_full[:, ID_FEATS:]
+    # Note: Whole image Xs do not have pos feats at end.
+
+    vissim_most_sim_out = batched_similarity_computation(X,
+                                                         MAX_ROWS_IMG,
+                                                         n_most)
+    np.savez_compressed(outfilename,
+                        vissim_most_sim_out,
+                        dict((n, v) for n, v in enumerate(X_ids[:, ImID_Feat])))
+
+
+# ======== main =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Use bbdfs or image features to compute similarity btw images')
@@ -189,5 +219,8 @@ if __name__ == '__main__':
     if args.mode == 'objects':
         for this_corp in args.corp:
             run_objects_sim(bbdf_dir, this_corp)
+    if args.mode == 'visual':
+        for this_corp in args.corp:
+            run_visual_sim(imfeat_dir, bbdf_dir, this_corp)
 
     print_timestamped_message('Done!')
