@@ -19,7 +19,7 @@ from sklearn import linear_model
 
 sys.path.append('../../Utils')
 from utils import print_timestamped_message
-sys.path.append('../WAC_utils')
+sys.path.append('../WAC_Utils')
 from wac_utils import filter_X_by_filelist, filter_refdf_by_filelist
 from wac_utils import filter_relational_expr
 from wac_utils import create_word2den, make_X_id_index, make_mask_matrix
