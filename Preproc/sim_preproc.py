@@ -40,6 +40,12 @@ ImID_Feat = 1  # and the image_id lives in this position
 
 
 def load_imsim(path):
+    '''Load the pre-computed similarity matrices.
+
+    Returns matrix and mapping. Matrix is by row, for each
+    image the n most similar other images.
+    Mapping maps the row index to an image ID.
+    '''
     npl = np.load(path)
     return npl['arr_0'], dict(npl['arr_1'].tolist())
 
