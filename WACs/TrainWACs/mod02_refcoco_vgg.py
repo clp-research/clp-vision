@@ -44,7 +44,7 @@ def main(config):
     # Model description:
     model = {
         'rcorp': 'refcoco',        # ref corpus
-        'cnn': 'rsn50-flatten_1',  # CNN used for vision feats
+        'cnn': 'vgg19-fc2',        # CNN used for vision feats
         'rel':   'excl',           # exclude relational expressions
         'wrdl':  'min',            # wordlist: minimal n occurrences...
         'wprm':  40,               # ... 40 times
@@ -67,7 +67,7 @@ def main(config):
         rc_splits = json.load(f)
 
     # Image features
-    X = np.load(feats_path + 'mscoco_bbdf_rsn50-flatten_1.npz')['arr_0']
+    X = np.load(feats_path + 'mscoco_bbdf_vgg19-fc2.npz')['arr_0']
     X_t = filter_X_by_filelist(X, rc_splits['train'])
 
     # Referring expressions
