@@ -17,9 +17,9 @@ import numpy as np
 import pandas as pd
 from sklearn import linear_model
 
-sys.path.append('../Utils')
+sys.path.append('../../Utils')
 from utils import print_timestamped_message
-sys.path.append('WAC_utils')
+sys.path.append('../WAC_utils')
 from wac_utils import filter_X_by_filelist, filter_refdf_by_filelist
 from wac_utils import filter_relational_expr
 from wac_utils import create_word2den, make_X_id_index, make_mask_matrix
@@ -127,8 +127,8 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config_file',
                         help='''
                         path to config file specifying data paths.
-                        default: '../Config/default.cfg' ''',
-                        default='../Config/default.cfg')
+                        default: '../../Config/default.cfg' ''',
+                        default='../../Config/default.cfg')
     parser.add_argument('-o', '--out_dir',
                         help='''
                         where to put the resulting files.
@@ -146,8 +146,8 @@ if __name__ == '__main__':
 
     if args.out_dir:
         out_dir = args.out_dir
-    elif config.has_option('DSGV-PATHS', 'extract_out_dir'):
-        out_dir = config.get('DSGV-PATHS', 'extract_out_dir')
+    elif config.has_option('DSGV-PATHS', 'train_out_dir'):
+        out_dir = config.get('DSGV-PATHS', 'train_out_dir')
     else:
         out_dir = './ModelsOut'
 
