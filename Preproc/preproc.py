@@ -718,7 +718,33 @@ class TaskFunctions(object):
         flickr_obdf = pd.DataFrame(out, columns=columns)
         self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
 
+    # ======= CUB Birds 2011 ========
+    #
+    def tsk_birdbb(self):
+        config = self.config
+        args = self.args
 
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Bounding Boxes', indent=4)
+
+        bird_basepath = config.get('CUB_BIRDS', 'birds_base')
+
+        with open(bird_basepath + '/images.txt','r') as f:
+            img_paths = [line.split() for line in f.readlines()]
+        with open(bird_basepath + '/bounding_boxes.txt', 'r') as f:
+            img_bbs = [line.split() for line in f.readlines()]
+
+        pathdf = pd.DataFrame(img_paths, columns='image_id image_path'.split())
+        boxdf = pd.DataFrame(img_bbs, columns='image_id x y w h'.split())
+        bird_df = pd.merge(pathdf, boxdf, on='image_id')
+        bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
+                                                in [p.x,p.y,p.w,p.h]], axis=1)
+        bird_df['i_corpus'] = icorpus_code['cub_birds']
+        bird_df['region_id'] = 0
+        bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
+
+        cub_bbdf = bird_df['bb i_corpus image_id region_id image_path'.split()]
+
+        self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -748,7 +774,7 @@ if __name__ == '__main__':
                                  'grexbb', 'visgenreg', 'visgenrel',
                                  'visgenobj', 'visgenatt', 'visgenvqa',
                                  'flickrbb', 'flickrcap', 'flickrobj',
-                                 'all'],
+                                 'birdbb', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
