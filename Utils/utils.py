@@ -18,7 +18,8 @@ icorpus_code = {
     'visual_genome': 5,    # VG, images and regions from visual genome
     'ade_20k': 6,          # ADE, images from ade 20k corpus
     'tingdataset': 7,  # https://tingh.github.io/resources/object_description
-    'flickr_30k': 8	   # flickr 30k Entities
+    'flickr_30k': 8,   # flickr 30k Entities
+    'cub_birds': 9     # http://www.vision.caltech.edu/visipedia/CUB-200-2011.html
     }
 
 code_icorpus = {item: key for key, item in icorpus_code.items()}
@@ -91,6 +92,9 @@ def flickr_image_filename(config, image_id):
 def join_imagenet_id(image_id, region_id):
     return 'n%08d_%d' % (image_id, region_id)
 
+def birds_filename(config, image_path):
+    bird_image_root = config.get('CUB_BIRDS', 'birds_images')
+    return bird_image_root + '/' + image_path
 
 def get_image_filename(config, icorp, image_id):
     if 'saiapr' in code_icorpus[icorp]:
@@ -101,6 +105,8 @@ def get_image_filename(config, icorp, image_id):
         return visgen_image_filename(config, image_id)
     if code_icorpus[icorp] == 'flickr_30k':
         return flickr_image_filename(config, image_id)
+    if code_icorpus[icorp] == 'cub_birds':
+        return birds_filename(config, image_id)
     raise ValueError('Unknown corpus code')
 
 
