@@ -204,3 +204,30 @@ def plot_img_cropped(impath, this_bb, title=None, text_size='large',
         plt.close()  # to supress showing the plot in interactive mode
 
     return img_cropped
+
+
+def query_by_id(df, image_id_tuple, column=None):
+    '''
+    Query a dataframe, based on an image id tuple.
+
+    If the tuple has two elements, they are interpreted as corpus id and
+    image id. If there is one more, this is interpreted as region id.
+
+    If column is None, the whole view on the data frame that matches the
+    image id tuple is returned. If it is a single string, the column of
+    that name will be returned as list. If it is a list of strings,
+    the subset of columns with that name will be returned, as data frame.
+    '''
+    query_expression = ['(i_corpus == {})', '(image_id == {})', '(region_id == {})']
+    query_string = []
+    for expr, id_part in zip(query_expression, image_id_tuple):
+        query_string.append(expr.format(id_part))
+    query_string = ' & '.join(query_string)
+
+    query_result = df.query(query_string)
+    if not column:
+        return query_result
+    elif type(column) == list:
+        return query_result[column]
+    else:
+        return df.query(query_string)[column].tolist()
