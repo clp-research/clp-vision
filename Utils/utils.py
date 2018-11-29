@@ -184,20 +184,23 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
 
 
 def plot_img_cropped(impath, this_bb, title=None, text_size='large',
-                     mode='path', omode='screen', opath=None):
+                     mode='path', omode='screen', opath=None,
+                     width=10, height=20, show_axis=False):
     if mode == 'path':
         img = plt.imread(impath)
     elif mode == 'img':
         img = impath
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(10, 20)
+    fig.set_size_inches(width, height)
 
     x, y, w, h = this_bb
 
     img_cropped = img[y:y+h, x:x+w]
 
     ax.imshow(img_cropped)
+    if not show_axis:
+        ax.axis('off')
 
     if omode == 'img':
         fig.savefig(opath, bbox_inches='tight', pad_inches=0)
