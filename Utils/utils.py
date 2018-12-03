@@ -209,6 +209,13 @@ def plot_img_cropped(impath, this_bb, title=None, text_size='large',
     return img_cropped
 
 
+def plot_img_ax(config, ax, corpus, image_id):
+    ax.imshow(plt.imread(get_image_filename(config,
+                                            icorpus_code[corpus],
+                                            image_id)))
+    ax.axis('off')
+
+
 def query_by_id(df, image_id_tuple, column=None):
     '''
     Query a dataframe, based on an image id tuple.
