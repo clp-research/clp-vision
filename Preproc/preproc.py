@@ -718,7 +718,7 @@ class TaskFunctions(object):
         flickr_obdf = pd.DataFrame(out, columns=columns)
         self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
 
-    # ======= CUB Birds 2011 ========
+    # ======= CUB Birds 2011 Bounding Boxes========
     #
     def tsk_birdbb(self):
         config = self.config
@@ -728,9 +728,9 @@ class TaskFunctions(object):
 
         bird_basepath = config.get('CUB_BIRDS', 'birds_base')
 
-        with open(bird_basepath + '/images.txt','r') as f:
+        with open(bird_basepath+'/images.txt','r') as f:
             img_paths = [line.split() for line in f.readlines()]
-        with open(bird_basepath + '/bounding_boxes.txt', 'r') as f:
+        with open(bird_basepath+'/bounding_boxes.txt', 'r') as f:
             img_bbs = [line.split() for line in f.readlines()]
 
         pathdf = pd.DataFrame(img_paths, columns='image_id image_path'.split())
@@ -742,9 +742,48 @@ class TaskFunctions(object):
         bird_df['region_id'] = 0
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
 
-        cub_bbdf = bird_df['bb i_corpus image_id region_id image_path'.split()]
+        columns = 'bb i_corpus image_id region_id image_path'.split()
+        cub_bbdf = bird_df[columns]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
+
+    # ======= CUB Birds 2011 Attributes========
+    #
+    def tsk_birdattr(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Attributes', indent=4)
+
+        bird_attrpath = config.get('CUB_BIRDS', 'birds_attributes')
+
+        # this requires cub_bbdf to be present in the default out dir
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                    typ='frame', orient='split',
+                                    compression='gzip')
+        attr = []
+        with open(bird_attrpath+'/attributes.txt','r') as f:
+            for line in f.readlines():
+                line_info = re.search(r'(\d+) (.+)::(.+)', line)
+                attr.append((line_info.group(1),line_info.group(2,3)))
+        attr_dict = dict(attr)
+
+        with open(bird_attrpath+'/image_attribute_labels.txt','r') as f:
+            #save the attributes for which is_present is true
+            attr_labels = [line.split() for line in f.readlines() if line.split()[2]=='1']
+
+        tempdf = pd.DataFrame(attr_labels, columns='image_id attribute_id is_present certainty_id time trash'.split())
+        cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
+        attrdf = pd.merge(tempdf, cub_bbdf, on='image_id')
+
+        attrdf['attribute_name'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
+        attrdf['attribute_value'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
+
+        columns = 'image_id attribute_name attribute_value image_path'.split()
+        cub_attrdf = attrdf[columns]
+        self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
+
+
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -774,7 +813,7 @@ if __name__ == '__main__':
                                  'grexbb', 'visgenreg', 'visgenrel',
                                  'visgenobj', 'visgenatt', 'visgenvqa',
                                  'flickrbb', 'flickrcap', 'flickrobj',
-                                 'birdbb', 'all'],
+                                 'birdbb', 'birdattr', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
