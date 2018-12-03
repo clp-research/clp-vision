@@ -209,10 +209,12 @@ def plot_img_cropped(impath, this_bb, title=None, text_size='large',
     return img_cropped
 
 
-def plot_img_ax(config, ax, corpus, image_id):
+def plot_img_ax(config, ax, corpus, image_id, title=None):
     ax.imshow(plt.imread(get_image_filename(config,
                                             icorpus_code[corpus],
                                             image_id)))
+    if title:
+        ax.set_title(title)
     ax.axis('off')
 
 
