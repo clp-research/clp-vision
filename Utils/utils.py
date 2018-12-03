@@ -190,23 +190,60 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
 
 
 def plot_img_cropped(impath, this_bb, title=None, text_size='large',
-                     mode='path', omode='screen', opath=None):
+                     mode='path', omode='screen', opath=None,
+                     width=10, height=20, show_axis=False):
     if mode == 'path':
         img = plt.imread(impath)
     elif mode == 'img':
         img = impath
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(10, 20)
+    fig.set_size_inches(width, height)
 
     x, y, w, h = this_bb
 
     img_cropped = img[y:y+h, x:x+w]
 
     ax.imshow(img_cropped)
+    if not show_axis:
+        ax.axis('off')
 
     if omode == 'img':
         fig.savefig(opath, bbox_inches='tight', pad_inches=0)
         plt.close()  # to supress showing the plot in interactive mode
 
     return img_cropped
+
+
+def plot_img_ax(config, ax, corpus, image_id):
+    ax.imshow(plt.imread(get_image_filename(config,
+                                            icorpus_code[corpus],
+                                            image_id)))
+    ax.axis('off')
+
+
+def query_by_id(df, image_id_tuple, column=None):
+    '''
+    Query a dataframe, based on an image id tuple.
+
+    If the tuple has two elements, they are interpreted as corpus id and
+    image id. If there is one more, this is interpreted as region id.
+
+    If column is None, the whole view on the data frame that matches the
+    image id tuple is returned. If it is a single string, the column of
+    that name will be returned as list. If it is a list of strings,
+    the subset of columns with that name will be returned, as data frame.
+    '''
+    query_expression = ['(i_corpus == {})', '(image_id == {})', '(region_id == {})']
+    query_string = []
+    for expr, id_part in zip(query_expression, image_id_tuple):
+        query_string.append(expr.format(id_part))
+    query_string = ' & '.join(query_string)
+
+    query_result = df.query(query_string)
+    if not column:
+        return query_result
+    elif type(column) == list:
+        return query_result[column]
+    else:
+        return df.query(query_string)[column].tolist()

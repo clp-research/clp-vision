@@ -466,6 +466,32 @@ class TaskFunctions(object):
 
         self._dumpDF(vgreg_df, args.out_dir + '/vgregdf.json', args)
 
+    # ======= Visual Genome Image Data ========
+    #
+    def tsk_visgenimg(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... VisualGenome Image Data', indent=4)
+
+        vgimd_path = config.get('VISGEN', 'visgen_12') + '/jsons/image_data.json'
+        this_corpus = icorpus_code['visual_genome']
+
+        with open(vgimd_path, 'r') as f:
+            out = []
+            iterator = items(f, 'item')
+            for n, entry in enumerate(iterator):
+                out.append((this_corpus,
+                            entry['image_id'],
+                            entry['coco_id'],
+                            entry['flickr_id'],
+                            entry['width'],
+                            entry['height']))
+        colnames = 'i_corpus image_id coco_id flickr_id width height'.split()
+        vg_im_df = pd.DataFrame(out, columns=colnames)
+
+        self._dumpDF(vg_im_df, args.out_dir + '/vgimgdf.json', args)
+
     # ======= Visual Genome Relationships ========
     #
     def tsk_visgenrel(self):
@@ -810,8 +836,9 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
-                                 'grexbb', 'visgenreg', 'visgenrel',
-                                 'visgenobj', 'visgenatt', 'visgenvqa',
+                                 'grexbb', 'visgenimg', 'visgenreg',
+                                 'visgenrel', 'visgenobj', 'visgenatt',
+                                 'visgenvqa',
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'all'],
                         help='''
