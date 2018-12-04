@@ -423,6 +423,23 @@ class TaskFunctions(object):
 
         self._dumpDF(bbdf_cocorprop, args.out_dir + '/cocogrprops_bbdf.json', args)
 
+    # ======= MSCOCO captions ========
+    #
+    def tsk_mscococap(self):
+
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... MSCOCO Captions', indent=4)
+
+        coco_captions_path = config.get('MSCOCO', 'mscoco_base') + '/annotations/captions_train2014.json'
+        with open(coco_captions_path, 'r') as f:
+            coca_json = json.load(f)
+        cococap_df = pd.DataFrame(coca_json['annotations'])
+        cococap_df['i_corpus'] = icorpus_code['mscoco']
+
+        self._dumpDF(cococap_df, args.out_dir + '/cococapdf.json', args)
+
     # ======= Visual Genome Region Descriptions ========
     #
     def tsk_visgenreg(self):
@@ -771,6 +788,7 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
+                                 'mscococap',
                                  'grexbb', 'visgenimg', 'visgenreg',
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa',
