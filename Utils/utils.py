@@ -21,7 +21,12 @@ icorpus_code = {
     'flickr_30k': 8	   # flickr 30k Entities
     }
 
-code_icorpus = {item: key for key, item in icorpus_code.items()}
+
+def invert_dict(indict):
+    return {v: k for k, v in indict.items()}
+
+
+code_icorpus = invert_dict(icorpus_code)
 
 
 def print_timestamped_message(message, indent=0):
@@ -132,7 +137,8 @@ def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
 
 
 def plot_labelled_bb(impath, bblist, title=None, text_size='large',
-                     mode='path', omode='screen', opath=None):
+                     mode='path', omode='screen', opath=None,
+                     figsize=(10, 20)):
     '''Given the path of an image and a list containing tuples
     of bounding box (a list of x,y,w,h) and label info,
     plot these boxes and labels into the image.
@@ -150,7 +156,7 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
         img = impath
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(10, 20)
+    fig.set_size_inches(figsize)
     ax.imshow(img)
 
     if bblist is not None:
