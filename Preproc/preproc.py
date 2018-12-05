@@ -643,6 +643,28 @@ class TaskFunctions(object):
 
         self._dumpDF(vgvqa_df, args.out_dir + '/vgvqadf.json', args)
 
+    # ======= Visual Genome Paragraphs ========
+    #
+    def tsk_visgenpar(self):
+        config = self.config
+        args = self.args
+
+        corpus_id = icorpus_code['visual_genome']
+
+        print_timestamped_message('... VisualGenome Paragraphs', indent=4)
+
+        vgpar_path = config.get('DEFAULT', 'corpora_base') + '/visualgenome_paragraphs/paragraphs_v1.json'
+
+        with open(vgpar_path, 'r') as f:
+            par_json = json.load(f)
+
+        par_df = pd.DataFrame(par_json)
+
+        par_df['i_corpus'] = corpus_id
+        par_df.drop('url', axis=1, inplace=True)
+
+        self._dumpDF(par_df, args.out_dir + '/vgpardf.json', args)
+
     # ======= Flickr 30k Entities CapDf ========
     #
     def tsk_flickrcap(self):
@@ -791,7 +813,7 @@ if __name__ == '__main__':
                                  'mscococap',
                                  'grexbb', 'visgenimg', 'visgenreg',
                                  'visgenrel', 'visgenobj', 'visgenatt',
-                                 'visgenvqa',
+                                 'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'all'],
                         help='''
