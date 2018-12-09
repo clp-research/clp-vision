@@ -249,3 +249,7 @@ def query_by_id(df, image_id_tuple, column=None):
         return query_result[column]
     else:
         return df.query(query_string)[column].tolist()
+
+
+def get_a_by_b(df, col_a, col_b, val):
+    return df[df[col_b] == val][col_a].values[0]
