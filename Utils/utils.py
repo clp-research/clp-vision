@@ -138,7 +138,7 @@ def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
 
 def plot_labelled_bb(impath, bblist, title=None, text_size='large',
                      mode='path', omode='screen', opath=None,
-                     figsize=(10, 20)):
+                     figsize=(10, 20), show_image=True):
     '''Given the path of an image and a list containing tuples
     of bounding box (a list of x,y,w,h) and label info,
     plot these boxes and labels into the image.
@@ -157,6 +157,10 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
 
     fig, ax = plt.subplots()
     fig.set_size_inches(figsize)
+
+    if not show_image:
+        img = np.ones_like(img) * 255
+        # img = np.zeros_like(img)
     ax.imshow(img)
 
     if bblist is not None:
@@ -182,7 +186,18 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
                         bbox={'facecolor': 'white', 'alpha': 0.7, 'pad': 10})
     if title is not None:
         ax.set_title(title)
-    ax.axis('off')
+
+    if show_image:
+        ax.axis('off')
+    else:
+        ax.tick_params(
+            axis='both',          # changes apply to the x-axis
+            which='both',      # both major and minor ticks are affected
+            bottom=False,      # ticks along the bottom edge are off
+            top=False,         # ticks along the top edge are off
+            labelbottom=False,
+            left=False,
+            labelleft=False)  # labels along the bottom edge are off
 
     if omode == 'img':
         fig.savefig(opath, bbox_inches='tight', pad_inches=0)
