@@ -22,7 +22,12 @@ icorpus_code = {
     'cub_birds': 9     # http://www.vision.caltech.edu/visipedia/CUB-200-2011.html
     }
 
-code_icorpus = {item: key for key, item in icorpus_code.items()}
+
+def invert_dict(indict):
+    return {v: k for k, v in indict.items()}
+
+
+code_icorpus = invert_dict(icorpus_code)
 
 
 def print_timestamped_message(message, indent=0):
@@ -138,7 +143,8 @@ def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
 
 
 def plot_labelled_bb(impath, bblist, title=None, text_size='large',
-                     mode='path', omode='screen', opath=None):
+                     mode='path', omode='screen', opath=None,
+                     figsize=(10, 20), show_image=True):
     '''Given the path of an image and a list containing tuples
     of bounding box (a list of x,y,w,h) and label info,
     plot these boxes and labels into the image.
@@ -156,7 +162,11 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
         img = impath
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(10, 20)
+    fig.set_size_inches(figsize)
+
+    if not show_image:
+        img = np.ones_like(img) * 255
+        # img = np.zeros_like(img)
     ax.imshow(img)
 
     if bblist is not None:
@@ -182,7 +192,18 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
                         bbox={'facecolor': 'white', 'alpha': 0.7, 'pad': 10})
     if title is not None:
         ax.set_title(title)
-    ax.axis('off')
+
+    if show_image:
+        ax.axis('off')
+    else:
+        ax.tick_params(
+            axis='both',          # changes apply to the x-axis
+            which='both',      # both major and minor ticks are affected
+            bottom=False,      # ticks along the bottom edge are off
+            top=False,         # ticks along the top edge are off
+            labelbottom=False,
+            left=False,
+            labelleft=False)  # labels along the bottom edge are off
 
     if omode == 'img':
         fig.savefig(opath, bbox_inches='tight', pad_inches=0)
@@ -215,10 +236,12 @@ def plot_img_cropped(impath, this_bb, title=None, text_size='large',
     return img_cropped
 
 
-def plot_img_ax(config, ax, corpus, image_id):
+def plot_img_ax(config, ax, corpus, image_id, title=None):
     ax.imshow(plt.imread(get_image_filename(config,
                                             icorpus_code[corpus],
                                             image_id)))
+    if title:
+        ax.set_title(title)
     ax.axis('off')
 
 
@@ -247,3 +270,7 @@ def query_by_id(df, image_id_tuple, column=None):
         return query_result[column]
     else:
         return df.query(query_string)[column].tolist()
+
+
+def get_a_by_b(df, col_a, col_b, val):
+    return df[df[col_b] == val][col_a].values[0]
