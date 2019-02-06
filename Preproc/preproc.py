@@ -807,7 +807,7 @@ class TaskFunctions(object):
         bird_df['region_id'] = 0
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
 
-        column_order = 'bb i_corpus image_id region_id image_path'.split()
+        column_order = 'i_corpus image_id region_id image_path bb'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
@@ -842,8 +842,9 @@ class TaskFunctions(object):
 
         attrdf['attribute_name'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
         attrdf['attribute_value'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
+        attrdf['i_corpus'] = icorpus_code['cub_birds']
 
-        column_order = 'image_id attribute_name attribute_value image_path'.split()
+        column_order = 'i_corpus image_id attribute_name attribute_value image_path'.split()
         cub_attrdf = attrdf[column_order]
         self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
 
@@ -877,7 +878,7 @@ class TaskFunctions(object):
 
         partdf['part_name'] = partdf.part_id.apply(lambda x: bird_part_dict[x])
 
-        column_order = 'image_id image_path part_name x y'.split()
+        column_order = 'i_corpus image_id image_path part_name x y'.split()
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
