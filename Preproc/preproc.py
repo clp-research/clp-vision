@@ -844,7 +844,7 @@ class TaskFunctions(object):
         attrdf['attribute_value'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
         attrdf['i_corpus'] = icorpus_code['cub_birds']
 
-        column_order = 'i_corpus image_id attribute_name attribute_value image_path'.split()
+        column_order = 'i_corpus image_id attribute_name attribute_value'.split()
         cub_attrdf = attrdf[column_order]
         self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
 
@@ -878,7 +878,7 @@ class TaskFunctions(object):
 
         partdf['part_name'] = partdf.part_id.apply(lambda x: bird_part_dict[x])
 
-        column_order = 'i_corpus image_id image_path part_name x y'.split()
+        column_order = 'i_corpus image_id part_name x y'.split()
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
