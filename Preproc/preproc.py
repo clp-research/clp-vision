@@ -10,6 +10,7 @@ to json)
 
 from __future__ import division
 
+from operator import itemgetter
 import argparse
 import re
 import ConfigParser
@@ -20,6 +21,7 @@ from ijson import items
 import cPickle as pickle
 import logging
 from itertools import chain
+import glob
 
 import numpy as np
 import scipy.io
@@ -36,6 +38,7 @@ from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
+from ade_helpers import id_mask, ade_path_data
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -784,6 +787,48 @@ class TaskFunctions(object):
         self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
 
 
+
+    def tsk_aderel(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('...ADE 20K Part-of Relations', indent=4)
+
+        image_basepath = config.get('DEFAULT', 'corpora_base')
+        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+
+        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+	corpus_id = icorpus_code['ade_20k']
+
+        part_relations = []
+        for (image_cat, image_id, filename) in image_paths:
+            if 'outliers' not in image_cat and 'misc' not in image_cat:
+	        print image_cat, image_id, filename
+       	        seg_files = glob.glob(image_basepath+'/'+image_cat+'/'+filename+'*.png')
+	        print image_basepath+image_cat+'/'+filename
+		level_arrays = []
+	        for file in seg_files:
+	            if 'seg' in file:
+		        level_arrays.append((0, plt.imread(file)))
+		    elif 'parts' in file:
+	        	level = re.search(r'.*parts_(.).png', file).group(1)
+	        	level_arrays.append((level, plt.imread(file)))
+
+	    	level_arrays = sorted(level_arrays,key=itemgetter(0))
+	    	level_masks = [(lvl, id_mask(array)) for lvl, array in level_arrays]
+	    	for level, mask in level_masks[1:]:
+		    for small in np.unique(mask)[1:]:
+		    	small_mask = np.where(mask == small)
+		    	int_big = level_masks[int(level)-1][1]
+    		    	big_mask = int_big[small_mask]
+    		    	if all(big_mask == big_mask[0]):
+        			part_relations.append({'i_corpus':corpus_id, 'image_id':image_id, 'region_id':big_mask[0],
+						'region_level': int(level)-1, 'part_id': small,
+						'part_level': int(level)})
+
+    	relations_df = pd.DataFrame(part_relations)
+        self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
+
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -815,7 +860,7 @@ if __name__ == '__main__':
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
-                                 'all'],
+                                 'aderel', 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
