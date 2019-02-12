@@ -861,7 +861,8 @@ if __name__ == '__main__':
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
-                                 'aderel', 'all'],
+                                 'aderel',
+                                 'all'],
                         help='''
                         task(s) to do. Choose one or more.
                         'all' runs all tasks.''')
