@@ -1,3 +1,7 @@
+import numpy as np
+import scipy.io
+import re
+
 def id_mask(image):
     ''' translates the array of a segmentation file into a mask with the actual object ids'''
     array = image[:,:,2]
