@@ -783,6 +783,104 @@ class TaskFunctions(object):
         flickr_obdf = pd.DataFrame(out, columns=columns)
         self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
 
+    # ======= CUB Birds 2011 Bounding Boxes========
+    #
+    def tsk_birdbb(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Bounding Boxes', indent=4)
+
+        bird_basepath = config.get('CUB_BIRDS', 'birds_base')
+
+        with open(bird_basepath+'/images.txt','r') as f:
+            img_paths = [line.split() for line in f.readlines()]
+        with open(bird_basepath+'/bounding_boxes.txt', 'r') as f:
+            img_bbs = [line.split() for line in f.readlines()]
+
+        pathdf = pd.DataFrame(img_paths, columns='image_id image_path'.split())
+        boxdf = pd.DataFrame(img_bbs, columns='image_id x y w h'.split())
+        bird_df = pd.merge(pathdf, boxdf, on='image_id')
+        bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
+                                                in [p.x,p.y,p.w,p.h]], axis=1)
+        bird_df['i_corpus'] = icorpus_code['cub_birds']
+        bird_df['region_id'] = 0
+        bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
+
+        column_order = 'i_corpus image_id region_id image_path bb'.split()
+        cub_bbdf = bird_df[column_order]
+
+        self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
+
+    # ======= CUB Birds 2011 Attributes========
+    #
+    def tsk_birdattr(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Attributes', indent=4)
+
+        bird_attrpath = config.get('CUB_BIRDS', 'birds_attributes')
+
+        # this requires cub_bbdf to be present in the default out dir
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                    typ='frame', orient='split',
+                                    compression='gzip')
+        attr_dict = {}
+        with open(bird_attrpath+'/attributes.txt','r') as f:
+            for line in f.readlines():
+                line_info = re.search(r'(\d+) (.+)::(.+)', line)
+                attr_dict[line_info.group(1)] = line_info.group(2,3)
+
+        with open(bird_attrpath+'/image_attribute_labels.txt','r') as f:
+            #save the attributes for which is_present is true
+            attr_labels = [line.split() for line in f.readlines() if line.split()[2]=='1']
+
+        tempdf = pd.DataFrame(attr_labels, columns='image_id attribute_id is_present certainty_id time trash'.split())
+        cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
+        attrdf = pd.merge(tempdf, cub_bbdf, on='image_id')
+
+        attrdf['attribute_name'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
+        attrdf['attribute_value'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
+        attrdf['i_corpus'] = icorpus_code['cub_birds']
+
+        column_order = 'i_corpus image_id attribute_name attribute_value'.split()
+        cub_attrdf = attrdf[column_order]
+        self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
+
+    # ======= CUB Birds 2011 Parts========
+    #
+    def tsk_birdparts(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Parts', indent=4)
+
+        bird_partpath = config.get('CUB_BIRDS', 'birds_parts')
+
+        with open(bird_partpath+'/part_locs.txt','r') as f:
+            part_locs = [line.split() for line in f.readlines() if line.split()[4]=='1']
+
+        bird_part_dict = {}
+        with open(bird_partpath+'/parts.txt','r') as f:
+            for line in f.readlines():
+                parts = line.strip().split(' ',1)
+                bird_part_dict[parts[0]] = parts[1]
+
+        # this requires cub_bbdf to be present in the default out dir
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                    typ='frame', orient='split',
+                                    compression='gzip')
+
+        tempdf = pd.DataFrame(part_locs, columns='image_id part_id x y visible'.split())
+        cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
+        partdf = pd.merge(tempdf, cub_bbdf, on='image_id')
+
+        partdf['part_name'] = partdf.part_id.apply(lambda x: bird_part_dict[x])
+
+        column_order = 'i_corpus image_id part_name x y'.split()
+        cub_partdf = partdf[column_order]
+        self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -815,6 +913,7 @@ if __name__ == '__main__':
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
+                                 'birdbb', 'birdattr', 'birdparts',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
