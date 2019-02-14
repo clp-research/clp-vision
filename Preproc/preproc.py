@@ -820,7 +820,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('... Caltech-UCSD Birds-200-2011 Attributes', indent=4)
 
-        bird_attrpath = config.get('CUB_BIRDS', 'birds_attributes')
+        bird_attrpath = config.get('CUB_BIRDS', 'birds_base') + '/attributes'
 
         # this requires cub_bbdf to be present in the default out dir
         cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
@@ -856,7 +856,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('... Caltech-UCSD Birds-200-2011 Parts', indent=4)
 
-        bird_partpath = config.get('CUB_BIRDS', 'birds_parts')
+        bird_partpath = config.get('CUB_BIRDS', 'birds_base') + '/parts'
 
         with open(bird_partpath+'/part_locs.txt', 'r') as f:
             part_locs = [line.split() for line in f.readlines() if line.split()[4] == '1']
