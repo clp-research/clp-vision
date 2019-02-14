@@ -841,11 +841,11 @@ class TaskFunctions(object):
         cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
         attrdf = pd.merge(tempdf, cub_bbdf, on='image_id')
 
-        attrdf['attribute_name'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
-        attrdf['attribute_value'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
+        attrdf['att'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
+        attrdf['val'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
         attrdf['i_corpus'] = icorpus_code['cub_birds']
 
-        column_order = 'i_corpus image_id attribute_name attribute_value'.split()
+        column_order = 'i_corpus image_id att val'.split()
         cub_attrdf = attrdf[column_order]
         self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
 
