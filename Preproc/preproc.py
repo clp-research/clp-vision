@@ -804,10 +804,9 @@ class TaskFunctions(object):
         bird_df['bb'] = bird_df.apply(lambda p: [int(float(num))
                                                  for num in [p.x, p.y, p.w, p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
-        bird_df['region_id'] = 0
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
 
-        column_order = 'i_corpus image_id region_id image_path bb'.split()
+        column_order = 'i_corpus image_id image_path bb'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
