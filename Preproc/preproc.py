@@ -808,7 +808,7 @@ class TaskFunctions(object):
         bird_df['category'] = bird_df['image_path'].apply(
             lambda x: x.split('/')[0].split('.')[1])
 
-        column_order = 'i_corpus image_id image_path bb'.split()
+        column_order = 'i_corpus image_id image_path category bb'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
