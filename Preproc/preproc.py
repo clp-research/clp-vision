@@ -805,6 +805,8 @@ class TaskFunctions(object):
                                                  for num in [p.x, p.y, p.w, p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
+        bird_df['category'] = bird_df['image_path'].apply(
+            lambda x: x.split('/')[0].split('.')[1])
 
         column_order = 'i_corpus image_id image_path bb'.split()
         cub_bbdf = bird_df[column_order]
