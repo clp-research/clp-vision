@@ -54,7 +54,7 @@ tagger = nltk.tag.perceptron.PerceptronTagger()
 
 
 def postag(refexp):
-    return nltk.tag._pos_tag(nltk.word_tokenize(refexp), None, tagger)
+    return nltk.tag._pos_tag(nltk.word_tokenize(refexp), None, tagger, lang='eng')
 
 
 # ========= the actual preproc tasks, wrapped in class  ===========
