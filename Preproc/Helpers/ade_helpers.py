@@ -20,3 +20,35 @@ def ade_path_data(matpath):
         image_id = re.search(r'([0-9]+)', filename).group(1)
         image_data.append((image_path, image_id, filename))
     return image_data
+
+def ade_annotation(image_cat, image_name):
+    basepath = image_cat+'/'+image_name
+    return basepath+ '_atr.txt'
+
+def get_ade_bb(image_cat, image_name, region_id):
+    fileseg = get_ade_mask(image_cat, image_name)
+    bbs = []
+    seg = plt.imread(fileseg)
+    R = seg[:,:,0]
+    G = seg[:,:,1]
+    B = seg[:,:,2]
+    i = int(region_id)
+    mask = (B == ((np.unique(B))[i]))*1
+    x1, y1 = np.nonzero(mask)[1].min(), np.nonzero(mask)[0].min()
+    x2, y2 = np.nonzero(mask)[1].max(), np.nonzero(mask)[0].max()
+    return [x1,y1,x2-x1,y2-y1]
+
+def get_ade_parts_bb(image_cat, image_name, num, region_id):
+    fileseg = get_ade_mask_parts(image_cat, image_name, num)
+    bbs = []
+    inconsist_f = []
+    seg = plt.imread(fileseg)
+    R = seg[:,:,0]
+    G = seg[:,:,1]
+    B = seg[:,:,2]
+    i = int(region_id)
+    mask = (B == ((np.unique(B))[i]))*1
+    x1, y1 = np.nonzero(mask)[1].min(), np.nonzero(mask)[0].min()
+    x2, y2 = np.nonzero(mask)[1].max(), np.nonzero(mask)[0].max()
+    return [x1,y1,x2-x1,y2-y1]
+    
