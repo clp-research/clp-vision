@@ -17,6 +17,6 @@ def ade_path_data(matpath):
     for i in range(len(filenames)):
         image_path = str(filenames[i][0])
         filename = str(pathnames[i][0]).split('.jpg')[0]
-        image_id = re.search(r'([0-9]+)', filenames[i][0]).group(1)
+        image_id = re.search(r'([0-9]+)', filename).group(1)
         image_data.append((image_path, image_id, filename))
     return image_data
