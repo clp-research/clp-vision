@@ -34,11 +34,12 @@ from tqdm import tqdm
 
 import sys
 sys.path.append('../Utils')
+sys.path.append('/Users/nilinykh')
 from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
-from ade_helpers import id_mask, ade_path_data
+from ade_helpers import id_mask, ade_path_data, ade_annotation
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -886,7 +887,7 @@ class TaskFunctions(object):
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
 
-    # ======= ADE 20K ========
+    # ======= ADE 20K part relations ========
     #
     def tsk_aderel(self):
         config = self.config
@@ -930,6 +931,110 @@ class TaskFunctions(object):
         relations_df = pd.DataFrame(part_relations)
         self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
 
+    # ======= ADE 20K images ========
+    #
+    def tsk_adeimgs(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
+
+        image_basepath = config.get('DEFAULT', 'corpora_base')
+        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+
+        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+        corpus_id = icorpus_code['ade_20k']
+
+        image_dataframe = []
+        for (image_cat, image_id, filename) in image_paths:
+            if 'outliers' not in image_cat and 'misc' not in image_cat:
+                print image_cat, image_id, filename
+
+                if 'training' in image_cat:
+                    this_cat = image_cat.split('training/')[1]
+                    image_dataframe.append({'i_corpus': corpus_id,
+                                           'image_id': image_id,
+                                           'filename': filename+'.jpg',
+                                           'image_cat': this_cat,
+                                           'set': 'training'})
+
+                elif 'validation' in image_cat:
+                    this_cat = image_cat.split('validation/')[1]
+                    image_dataframe.append({'i_corpus': corpus_id,
+                                           'image_id': image_id,
+                                           'filename': filename+'.jpg',
+                                           'image_cat': this_cat,
+                                           'set': 'validation'})
+
+        images_df = pd.DataFrame(image_dataframe)
+        self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
+
+
+    # ======= ADE 20K objects ========
+    #
+
+    def tsk_adeobj(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
+
+        image_basepath = config.get('DEFAULT', 'corpora_base')
+        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+
+        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+        corpus_id = icorpus_code['ade_20k']
+
+        object_dataframe = []
+        for (image_cat, image_id, filename) in image_paths:
+            if 'outliers' not in image_cat and 'misc' not in image_cat:
+                print image_cat, image_id, filename
+
+                annotation_file = ade_annotation(image_cat, filename)
+
+                # needs to be changed
+                with open('/Users/nilinykh/'+annotation_file, 'r') as ann_f:
+
+                    annotation_lines = ann_f.read().split('\n')
+                    for this_line in annotation_lines:
+                        if this_line != '':
+                            obj_id = this_line.split(' # ')[0]
+                            level = this_line.split(' # ')[1]
+                            wnsyns = this_line.split(' # ')[3]
+                            label = this_line.split(' # ')[4]
+                            if this_line.split(' # ')[5] != "":
+                                attrs = this_line.split(' # ')[5].strip('\"')
+                            else:
+                                attrs = None
+                            if this_line.split(' # ')[2] == '0':
+                                occl = False
+                            else:
+                                occl = True
+
+                            # should we use masks here, not bounding boxes?
+                            # anyway, I put bounding box functions in the helpers files for now
+                            # probably better to go with masks (as in relations frame),
+                            # but functions for bbs are there, just in case
+
+                            #if level == '0':
+                            #    bbs_img = get_ade_bb(image_cat, filename, obj_id)
+                            #else:
+                            #    bbs_img = get_ade_parts_bb(image_cat, filename, level, obj_id)
+
+
+                            object_dataframe.append({'i_corpus': corpus_id,
+                                                   'image_id': image_id,
+                                                   'level': level,
+                                                   'region_id': obj_id,
+                                                   'bb': 'bounding box or mask here',
+                                                   'label': label,
+                                                   'synset': wnsyns,
+                                                   'attr': attrs,
+                                                   'occl': occl})
+
+        objects_df = pd.DataFrame(object_dataframe)
+        self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
+
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -962,7 +1067,7 @@ if __name__ == '__main__':
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts',
-                                 'aderel',
+                                 'aderel', 'adeimgs', 'adeobj',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
