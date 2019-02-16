@@ -34,7 +34,6 @@ from tqdm import tqdm
 
 import sys
 sys.path.append('../Utils')
-sys.path.append('/Users/nilinykh')
 from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 sys.path.append('Helpers')
