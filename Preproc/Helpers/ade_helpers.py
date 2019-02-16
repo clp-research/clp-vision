@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.io
 import re
+import matplotlib.pyplot as plt
 
 def id_mask(image):
     ''' translates the array of a segmentation file into a mask with the actual object ids'''
@@ -21,16 +22,22 @@ def ade_path_data(matpath):
         image_data.append((image_path, image_id, filename))
     return image_data
 
-def ade_annotation(image_cat, image_name):
-    basepath = image_cat+'/'+image_name
+def ade_annotation(ade_path, image_cat, image_name):
+    basepath = ade_path+'/'+image_cat+'/'+image_name
     return basepath+ '_atr.txt'
 
-def get_ade_bb(image_cat, image_name, region_id):
-    fileseg = get_ade_mask(image_cat, image_name)
-    bbs = []
+def get_ade_mask(ade_path, image_cat, image_name):
+    basepath = ade_path+'/'+image_cat+'/'+image_name
+    return basepath + '_seg.png'
+
+def get_ade_mask_parts(ade_path, image_cat, image_name, level):
+    basepath = ade_path+'/'+image_cat+'/'+image_name
+    return basepath + '_parts_{}.png'.format(level)
+
+def get_ade_bb(ade_basepath, image_cat, image_name, region_id):
+    fileseg = get_ade_mask(ade_basepath, image_cat, image_name)
+    print(fileseg)
     seg = plt.imread(fileseg)
-    R = seg[:,:,0]
-    G = seg[:,:,1]
     B = seg[:,:,2]
     i = int(region_id)
     mask = (B == ((np.unique(B))[i]))*1
@@ -38,17 +45,12 @@ def get_ade_bb(image_cat, image_name, region_id):
     x2, y2 = np.nonzero(mask)[1].max(), np.nonzero(mask)[0].max()
     return [x1,y1,x2-x1,y2-y1]
 
-def get_ade_parts_bb(image_cat, image_name, num, region_id):
-    fileseg = get_ade_mask_parts(image_cat, image_name, num)
-    bbs = []
-    inconsist_f = []
+def get_ade_parts_bb(ade_basepath, image_cat, image_name, num, region_id):
+    fileseg = get_ade_mask_parts(ade_basepath, image_cat, image_name, num)
     seg = plt.imread(fileseg)
-    R = seg[:,:,0]
-    G = seg[:,:,1]
     B = seg[:,:,2]
     i = int(region_id)
     mask = (B == ((np.unique(B))[i]))*1
     x1, y1 = np.nonzero(mask)[1].min(), np.nonzero(mask)[0].min()
     x2, y2 = np.nonzero(mask)[1].max(), np.nonzero(mask)[0].max()
     return [x1,y1,x2-x1,y2-y1]
-    

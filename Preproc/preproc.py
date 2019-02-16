@@ -40,6 +40,7 @@ from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
 from ade_helpers import id_mask, ade_path_data, ade_annotation
+from ade_helpers import get_ade_bb, get_ade_parts_bb
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -988,13 +989,9 @@ class TaskFunctions(object):
         object_dataframe = []
         for (image_cat, image_id, filename) in image_paths:
             if 'outliers' not in image_cat and 'misc' not in image_cat:
-                print image_cat, image_id, filename
-
-                annotation_file = ade_annotation(image_cat, filename)
-
-                # needs to be changed
-                with open('/Users/nilinykh/'+annotation_file, 'r') as ann_f:
-
+                cat = '/'.join(image_cat.split('/')[1:])
+                annotation_file = ade_annotation(ade_basepath, cat, filename)
+                with open(annotation_file, 'r') as ann_f:
                     annotation_lines = ann_f.read().split('\n')
                     for this_line in annotation_lines:
                         if this_line != '':
@@ -1005,28 +1002,23 @@ class TaskFunctions(object):
                             if this_line.split(' # ')[5] != "":
                                 attrs = this_line.split(' # ')[5].strip('\"')
                             else:
-                                attrs = None
+                                attrs = False
                             if this_line.split(' # ')[2] == '0':
                                 occl = False
                             else:
                                 occl = True
 
-                            # should we use masks here, not bounding boxes?
-                            # anyway, I put bounding box functions in the helpers files for now
-                            # probably better to go with masks (as in relations frame),
-                            # but functions for bbs are there, just in case
+                            if level == '0':
+                                bb = get_ade_bb(ade_basepath, cat, filename, obj_id)
+                            else:
+                                bb = get_ade_parts_bb(ade_basepath, cat, filename, level, obj_id)
 
-                            #if level == '0':
-                            #    bbs_img = get_ade_bb(image_cat, filename, obj_id)
-                            #else:
-                            #    bbs_img = get_ade_parts_bb(image_cat, filename, level, obj_id)
-
-
+                            print obj_id, level, bb
                             object_dataframe.append({'i_corpus': corpus_id,
                                                    'image_id': image_id,
                                                    'level': level,
                                                    'region_id': obj_id,
-                                                   'bb': 'bounding box or mask here',
+                                                   'bb': bb,
                                                    'label': label,
                                                    'synset': wnsyns,
                                                    'attr': attrs,
