@@ -38,8 +38,7 @@ from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
-from ade_helpers import id_mask, ade_path_data, ade_annotation
-from ade_helpers import get_ade_bb, get_ade_parts_bb
+from ade_helpers import id_mask, ade_path_data, ade_annotation, get_ade_bb
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -828,16 +827,16 @@ class TaskFunctions(object):
 
         # this requires cub_bbdf to be present in the default out dir
         cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
-                                    typ='frame', orient='split',
-                                    compression='gzip')
+                                typ='frame', orient='split',
+                                compression='gzip')
         attr_dict = {}
-        with open(bird_attrpath+'/attributes.txt','r') as f:
+        with open(bird_attrpath+'/attributes.txt', 'r') as f:
             for line in f.readlines():
                 line_info = re.search(r'(\d+) (.+)::(.+)', line)
-                attr_dict[line_info.group(1)] = line_info.group(2,3)
+                attr_dict[line_info.group(1)] = line_info.group(2, 3)
 
-        with open(bird_attrpath+'/image_attribute_labels.txt','r') as f:
-            #save the attributes for which is_present is true
+        with open(bird_attrpath+'/image_attribute_labels.txt', 'r') as f:
+            # save the attributes for which is_present is true
             attr_labels = [line.split() for line in f.readlines() if line.split()[2]=='1']
 
         tempdf = pd.DataFrame(attr_labels, columns='image_id attribute_id is_present certainty_id time trash'.split())
@@ -862,11 +861,11 @@ class TaskFunctions(object):
 
         bird_partpath = config.get('CUB_BIRDS', 'birds_parts')
 
-        with open(bird_partpath+'/part_locs.txt','r') as f:
+        with open(bird_partpath+'/part_locs.txt', 'r') as f:
             part_locs = [line.split() for line in f.readlines() if line.split()[4]=='1']
 
         bird_part_dict = {}
-        with open(bird_partpath+'/parts.txt','r') as f:
+        with open(bird_partpath+'/parts.txt', 'r') as f:
             for line in f.readlines():
                 parts = line.strip().split(' ',1)
                 bird_part_dict[parts[0]] = parts[1]
@@ -885,7 +884,6 @@ class TaskFunctions(object):
         column_order = 'i_corpus image_id part_name x y'.split()
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
-
 
     # ======= ADE 20K part relations ========
     #
@@ -913,7 +911,7 @@ class TaskFunctions(object):
                     elif 'parts' in file:
                         level = re.search(r'.*parts_(.).png', file).group(1)
                         level_arrays.append((level, plt.imread(file)))
-                level_arrays = sorted(level_arrays,key=itemgetter(0))
+                level_arrays = sorted(level_arrays, key=itemgetter(0))
                 level_masks = [(lvl, id_mask(array)) for lvl, array in level_arrays]
                 for level, mask in level_masks[1:]:
                     for small in np.unique(mask)[1:]:
@@ -949,35 +947,28 @@ class TaskFunctions(object):
         for (image_cat, image_id, filename) in image_paths:
             if 'outliers' not in image_cat and 'misc' not in image_cat:
                 print image_cat, image_id, filename
-
                 if 'training' in image_cat:
+                    this_set = 'training'
                     this_cat = image_cat.split('training/')[1]
-                    image_dataframe.append({'i_corpus': corpus_id,
-                                           'image_id': image_id,
-                                           'filename': filename+'.jpg',
-                                           'image_cat': this_cat,
-                                           'set': 'training'})
-
                 elif 'validation' in image_cat:
+                    this_set = 'validation'
                     this_cat = image_cat.split('validation/')[1]
-                    image_dataframe.append({'i_corpus': corpus_id,
-                                           'image_id': image_id,
-                                           'filename': filename+'.jpg',
-                                           'image_cat': this_cat,
-                                           'set': 'validation'})
+                image_dataframe.append({'i_corpus': corpus_id,
+                                        'image_id': image_id,
+                                        'filename': filename+'.jpg',
+                                        'image_cat': this_cat,
+                                        'set': this_set})
 
         images_df = pd.DataFrame(image_dataframe)
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
-
     # ======= ADE 20K objects ========
     #
-
     def tsk_adeobj(self):
         config = self.config
         args = self.args
 
-        print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
+        print_timestamped_message('...ADE 20K Object Dataframe', indent=4)
 
         image_basepath = config.get('DEFAULT', 'corpora_base')
         ade_basepath = config.get('ADE_20K', 'ade_basepath')
@@ -1007,24 +998,23 @@ class TaskFunctions(object):
                             else:
                                 occl = True
 
-                            if level == '0':
-                                bb = get_ade_bb(ade_basepath, cat, filename, obj_id)
-                            else:
-                                bb = get_ade_parts_bb(ade_basepath, cat, filename, level, obj_id)
+                            bb = get_ade_bb(ade_basepath, cat, filename,
+                                            level, obj_id)
 
-                            print obj_id, level, bb
+                            #print obj_id, level, bb
                             object_dataframe.append({'i_corpus': corpus_id,
-                                                   'image_id': image_id,
-                                                   'level': level,
-                                                   'region_id': obj_id,
-                                                   'bb': bb,
-                                                   'label': label,
-                                                   'synset': wnsyns,
-                                                   'attr': attrs,
-                                                   'occl': occl})
+                                                     'image_id': image_id,
+                                                     'level': level,
+                                                     'region_id': obj_id,
+                                                     'bb': bb,
+                                                     'label': label,
+                                                     'synset': wnsyns,
+                                                     'attr': attrs,
+                                                     'occl': occl})
 
         objects_df = pd.DataFrame(object_dataframe)
         self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
