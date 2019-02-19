@@ -885,7 +885,7 @@ class TaskFunctions(object):
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
-    # ======= ADE 20K part relations ========
+    # ======= ADE 20K part relations & objects========
     #
     def tsk_aderel(self):
         config = self.config
@@ -893,7 +893,6 @@ class TaskFunctions(object):
 
         print_timestamped_message('...ADE 20K Part-of Relations', indent=4)
 
-        image_basepath = config.get('DEFAULT', 'corpora_base')
         ade_basepath = config.get('ADE_20K', 'ade_basepath')
 
         image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
@@ -901,10 +900,10 @@ class TaskFunctions(object):
 
         part_relations = []
         ade_objects = []
-        for (image_cat, image_id, filename) in image_paths:
+        for n, (image_cat, image_id, filename) in tqdm(enumerate(image_paths[:10])):
             if 'outliers' not in image_cat and 'misc' not in image_cat:
-                #print image_cat, image_id, filename
-                seg_files = glob.glob(image_basepath+'/'+image_cat+'/'+filename+'*.png')
+                # print image_cat, image_id, filename
+                seg_files = glob.glob(ade_basepath+'/'+image_cat+'/'+filename+'*.png')
                 level_arrays = []
                 for file in seg_files:
                     if 'seg' in file:
@@ -914,6 +913,24 @@ class TaskFunctions(object):
                         level_arrays.append((level, plt.imread(file)))
                 level_arrays = sorted(level_arrays, key=itemgetter(0))
                 level_masks = [(lvl, id_mask(array)) for lvl, array in level_arrays]
+
+                # record the total number of objects for comparison with annotations
+                object_no = 0
+		for n, mask in level_masks:
+                    object_no += len(np.unique(mask))-1 # not counting 0
+
+                annotation_file = ade_annotation(ade_basepath,image_cat,filename)
+                with open(annotation_file, 'r') as ann_f:
+                    annotation_lines = ann_f.read().split('\n')
+		annotation_lines = [ann for ann in annotation_lines if ann != '']
+
+		# inconsistency check
+                if len(annotation_lines) > object_no:
+                    print(image_id, 'inc')
+		    with open(args.out_dir + 'ade_inconsistent_images.txt', 'a') as f:
+			f.write(ade_basepath+image_cat+'/'+filename+'/n')
+		    continue
+
                 for level, mask in level_masks[1:]:
                     for small in np.unique(mask)[1:]:
                         small_mask = np.where(mask == small)
@@ -927,43 +944,38 @@ class TaskFunctions(object):
                                                    'part_id': small,
                                                    'part_level': int(level)})
 
-                cat = '/'.join(image_cat.split('/')[1:])
-                print cat, filename, image_cat
-                annotation_file = ade_annotation(ade_basepath, cat, filename)
-                with open(annotation_file, 'r') as ann_f:
-                    annotation_lines = ann_f.read().split('\n')
-
                 for this_line in annotation_lines:
-                    if this_line != '':
-                        obj_id = this_line.split(' # ')[0]
-                        level = this_line.split(' # ')[1]
-                        wnsyns = this_line.split(' # ')[3]
-                        label = this_line.split(' # ')[4]
-                        if this_line.split(' # ')[5] != "":
-                            attrs = this_line.split(' # ')[5].strip('\"')
-                        else:
-                            attrs = False
-                        if this_line.split(' # ')[2] == '0':
-                            occl = False
-                        else:
-                            occl = True
+                    obj_id = this_line.split(' # ')[0]
+                    level = this_line.split(' # ')[1]
+                    wnsyns = this_line.split(' # ')[3]
+                    label = this_line.split(' # ')[4]
+                    if this_line.split(' # ')[5] != "":
+                        attrs = this_line.split(' # ')[5].strip('\"')
+                    else:
+                        attrs = False
+                    if this_line.split(' # ')[2] == '0':
+                        occl = False
+                    else:
+                        occl = True
 
-                        bb = get_ade_bb(ade_basepath, cat, filename,
-                                        level, obj_id)
+                    bb = get_ade_bb(level_arrays[int(level)][1], obj_id)
 
-                        #print obj_id, level, bb
-                        ade_objects.append({'i_corpus': corpus_id,
-                                                 'image_id': image_id,
-                                                 'level': level,
-                                                 'region_id': obj_id,
-                                                 'bb': bb,
-                                                 'label': label,
-                                                 'synset': wnsyns,
-                                                 'attr': attrs,
-                                                 'occl': occl})
+                    print obj_id, level, bb, image_id, label
+                    ade_objects.append({'i_corpus': corpus_id,
+                                        'image_id': image_id,
+                                        'level': level,
+                                        'region_id': obj_id,
+                                        'bb': bb,
+                                        'label': label,
+                                        'synset': wnsyns,
+                                        'attr': attrs,
+                                        'occl': occl})
 
         relations_df = pd.DataFrame(part_relations)
         self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
+
+        objects_df = pd.DataFrame(ade_objects)
+        self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
 
 
     # ======= ADE 20K images ========
@@ -999,62 +1011,6 @@ class TaskFunctions(object):
         images_df = pd.DataFrame(image_dataframe)
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
-        objects_df = pd.DataFrame(ade_objects)
-        self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
-
-    # ======= ADE 20K objects ========
-    #
-    def tsk_adeobj(self):
-        config = self.config
-        args = self.args
-
-        print_timestamped_message('...ADE 20K Object Dataframe', indent=4)
-
-        image_basepath = config.get('DEFAULT', 'corpora_base')
-        ade_basepath = config.get('ADE_20K', 'ade_basepath')
-
-        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
-        corpus_id = icorpus_code['ade_20k']
-
-        object_dataframe = []
-        for (image_cat, image_id, filename) in image_paths:
-            if 'outliers' not in image_cat and 'misc' not in image_cat:
-                cat = '/'.join(image_cat.split('/')[1:])
-                annotation_file = ade_annotation(ade_basepath, cat, filename)
-                with open(annotation_file, 'r') as ann_f:
-                    annotation_lines = ann_f.read().split('\n')
-                for this_line in annotation_lines:
-                    if this_line != '':
-                        obj_id = this_line.split(' # ')[0]
-                        level = this_line.split(' # ')[1]
-                        wnsyns = this_line.split(' # ')[3]
-                        label = this_line.split(' # ')[4]
-                        if this_line.split(' # ')[5] != "":
-                            attrs = this_line.split(' # ')[5].strip('\"')
-                        else:
-                            attrs = False
-                        if this_line.split(' # ')[2] == '0':
-                            occl = False
-                        else:
-                            occl = True
-
-                        bb = get_ade_bb(ade_basepath, cat, filename,
-                                        level, obj_id)
-
-                        #print obj_id, level, bb
-                        object_dataframe.append({'i_corpus': corpus_id,
-                                                 'image_id': image_id,
-                                                 'level': level,
-                                                 'region_id': obj_id,
-                                                 'bb': bb,
-                                                 'label': label,
-                                                 'synset': wnsyns,
-                                                 'attr': attrs,
-                                                 'occl': occl})
-
-        objects_df = pd.DataFrame(object_dataframe)
-        self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
-
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -1088,7 +1044,7 @@ if __name__ == '__main__':
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts',
-                                 'aderel', 'adeimgs', 'adeobj',
+                                 'aderel', 'adeimgs',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
