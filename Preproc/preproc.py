@@ -900,7 +900,7 @@ class TaskFunctions(object):
 
         part_relations = []
         ade_objects = []
-        for n, (image_cat, image_id, filename) in tqdm(enumerate(image_paths[:10])):
+        for n, (image_cat, image_id, filename) in tqdm(enumerate(image_paths)):
             if 'outliers' not in image_cat and 'misc' not in image_cat:
                 # print image_cat, image_id, filename
                 seg_files = glob.glob(ade_basepath+'/'+image_cat+'/'+filename+'*.png')
