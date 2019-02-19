@@ -900,9 +900,10 @@ class TaskFunctions(object):
         corpus_id = icorpus_code['ade_20k']
 
         part_relations = []
+        ade_objects = []
         for (image_cat, image_id, filename) in image_paths:
             if 'outliers' not in image_cat and 'misc' not in image_cat:
-                print image_cat, image_id, filename
+                #print image_cat, image_id, filename
                 seg_files = glob.glob(image_basepath+'/'+image_cat+'/'+filename+'*.png')
                 level_arrays = []
                 for file in seg_files:
@@ -926,8 +927,44 @@ class TaskFunctions(object):
                                                    'part_id': small,
                                                    'part_level': int(level)})
 
+                cat = '/'.join(image_cat.split('/')[1:])
+                print cat, filename, image_cat
+                annotation_file = ade_annotation(ade_basepath, cat, filename)
+                with open(annotation_file, 'r') as ann_f:
+                    annotation_lines = ann_f.read().split('\n')
+
+                for this_line in annotation_lines:
+                    if this_line != '':
+                        obj_id = this_line.split(' # ')[0]
+                        level = this_line.split(' # ')[1]
+                        wnsyns = this_line.split(' # ')[3]
+                        label = this_line.split(' # ')[4]
+                        if this_line.split(' # ')[5] != "":
+                            attrs = this_line.split(' # ')[5].strip('\"')
+                        else:
+                            attrs = False
+                        if this_line.split(' # ')[2] == '0':
+                            occl = False
+                        else:
+                            occl = True
+
+                        bb = get_ade_bb(ade_basepath, cat, filename,
+                                        level, obj_id)
+
+                        #print obj_id, level, bb
+                        ade_objects.append({'i_corpus': corpus_id,
+                                                 'image_id': image_id,
+                                                 'level': level,
+                                                 'region_id': obj_id,
+                                                 'bb': bb,
+                                                 'label': label,
+                                                 'synset': wnsyns,
+                                                 'attr': attrs,
+                                                 'occl': occl})
+
         relations_df = pd.DataFrame(part_relations)
         self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
+
 
     # ======= ADE 20K images ========
     #
@@ -961,6 +998,9 @@ class TaskFunctions(object):
 
         images_df = pd.DataFrame(image_dataframe)
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
+
+        objects_df = pd.DataFrame(ade_objects)
+        self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
 
     # ======= ADE 20K objects ========
     #
