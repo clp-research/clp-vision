@@ -42,10 +42,10 @@ def get_ade_mask_parts(ade_path, image_cat, image_name, level):
     return basepath + '_parts_{}.png'.format(level)
 
 
-def get_ade_bb(ade_basepath, image_cat, image_name, level=0, region_id):
-    if level == 0:
+def get_ade_bb(ade_basepath, image_cat, image_name, region_id, level):
+    if int(level) == 0:
         fileseg = get_ade_mask(ade_basepath, image_cat, image_name)
-    elif level >= 1:
+    elif int(level) >= 1:
         fileseg = get_ade_mask_parts(ade_basepath, image_cat, image_name, level)
     #print(fileseg)
     seg = plt.imread(fileseg)

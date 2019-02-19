@@ -983,34 +983,34 @@ class TaskFunctions(object):
                 annotation_file = ade_annotation(ade_basepath, cat, filename)
                 with open(annotation_file, 'r') as ann_f:
                     annotation_lines = ann_f.read().split('\n')
-                    for this_line in annotation_lines:
-                        if this_line != '':
-                            obj_id = this_line.split(' # ')[0]
-                            level = this_line.split(' # ')[1]
-                            wnsyns = this_line.split(' # ')[3]
-                            label = this_line.split(' # ')[4]
-                            if this_line.split(' # ')[5] != "":
-                                attrs = this_line.split(' # ')[5].strip('\"')
-                            else:
-                                attrs = False
-                            if this_line.split(' # ')[2] == '0':
-                                occl = False
-                            else:
-                                occl = True
+                for this_line in annotation_lines:
+                    if this_line != '':
+                        obj_id = this_line.split(' # ')[0]
+                        level = this_line.split(' # ')[1]
+                        wnsyns = this_line.split(' # ')[3]
+                        label = this_line.split(' # ')[4]
+                        if this_line.split(' # ')[5] != "":
+                            attrs = this_line.split(' # ')[5].strip('\"')
+                        else:
+                            attrs = False
+                        if this_line.split(' # ')[2] == '0':
+                            occl = False
+                        else:
+                            occl = True
 
-                            bb = get_ade_bb(ade_basepath, cat, filename,
-                                            level, obj_id)
+                        bb = get_ade_bb(ade_basepath, cat, filename,
+                                        level, obj_id)
 
-                            #print obj_id, level, bb
-                            object_dataframe.append({'i_corpus': corpus_id,
-                                                     'image_id': image_id,
-                                                     'level': level,
-                                                     'region_id': obj_id,
-                                                     'bb': bb,
-                                                     'label': label,
-                                                     'synset': wnsyns,
-                                                     'attr': attrs,
-                                                     'occl': occl})
+                        #print obj_id, level, bb
+                        object_dataframe.append({'i_corpus': corpus_id,
+                                                 'image_id': image_id,
+                                                 'level': level,
+                                                 'region_id': obj_id,
+                                                 'bb': bb,
+                                                 'label': label,
+                                                 'synset': wnsyns,
+                                                 'attr': attrs,
+                                                 'occl': occl})
 
         objects_df = pd.DataFrame(object_dataframe)
         self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
