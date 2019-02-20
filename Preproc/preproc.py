@@ -796,7 +796,7 @@ class TaskFunctions(object):
 
         bird_basepath = config.get('CUB_BIRDS', 'birds_base')
 
-        with open(bird_basepath+'/images.txt','r') as f:
+        with open(bird_basepath+'/images.txt', 'r') as f:
             img_paths = [line.split() for line in f.readlines()]
         with open(bird_basepath+'/bounding_boxes.txt', 'r') as f:
             img_bbs = [line.split() for line in f.readlines()]
@@ -867,7 +867,7 @@ class TaskFunctions(object):
         bird_part_dict = {}
         with open(bird_partpath+'/parts.txt', 'r') as f:
             for line in f.readlines():
-                parts = line.strip().split(' ',1)
+                parts = line.strip().split(' ', 1)
                 bird_part_dict[parts[0]] = parts[1]
 
         # this requires cub_bbdf to be present in the default out dir
@@ -891,7 +891,7 @@ class TaskFunctions(object):
         config = self.config
         args = self.args
 
-        print_timestamped_message('...ADE 20K Part-of Relations', indent=4)
+        print_timestamped_message('...ADE 20K Part-of Relations & Objects', indent=4)
 
         ade_basepath = config.get('ADE_20K', 'ade_basepath')
 
@@ -916,20 +916,20 @@ class TaskFunctions(object):
 
                 # record the total number of objects for comparison with annotations
                 object_no = 0
-		for n, mask in level_masks:
-                    object_no += len(np.unique(mask))-1 # not counting 0
+                for n, mask in level_masks:
+                    object_no += len(np.unique(mask))-1  # not counting 0
 
-                annotation_file = ade_annotation(ade_basepath,image_cat,filename)
+                annotation_file = ade_annotation(ade_basepath, image_cat, filename)
                 with open(annotation_file, 'r') as ann_f:
                     annotation_lines = ann_f.read().split('\n')
-		annotation_lines = [ann for ann in annotation_lines if ann != '']
+                annotation_lines = [ann for ann in annotation_lines if ann != '']
 
-		# inconsistency check
+                # inconsistency check
                 if len(annotation_lines) > object_no:
                     print(image_id, 'inc')
-		    with open(args.out_dir + 'ade_inconsistent_images.txt', 'a') as f:
-			f.write(ade_basepath+image_cat+'/'+filename+'/n')
-		    continue
+                    with open(args.out_dir + 'ade_inconsistent_images.txt', 'a') as f:
+                        f.write(ade_basepath+image_cat+'/'+filename+'/n')
+                    continue
 
                 for level, mask in level_masks[1:]:
                     for small in np.unique(mask)[1:]:
@@ -960,7 +960,7 @@ class TaskFunctions(object):
 
                     bb = get_ade_bb(level_arrays[int(level)][1], obj_id)
 
-                    print obj_id, level, bb, image_id, label
+                    # print obj_id, level, bb, image_id, label
                     ade_objects.append({'i_corpus': corpus_id,
                                         'image_id': image_id,
                                         'level': level,
