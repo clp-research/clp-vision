@@ -928,8 +928,8 @@ class TaskFunctions(object):
                 # inconsistency check
                 if len(annotation_lines) > object_no:
                     print(image_id, 'inc')
-                    with open(args.out_dir + 'ade_inconsistent_images.txt', 'a') as f:
-                        f.write(ade_basepath+image_cat+'/'+filename+'/n')
+                    with open(args.out_dir + '/ade_inconsistent_images.txt', 'a') as f:
+                        f.write(ade_basepath+image_cat+'/'+filename+'\n')
                     continue
 
                 for level, mask in level_masks[1:]:
