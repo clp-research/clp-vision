@@ -797,17 +797,22 @@ class TaskFunctions(object):
             img_paths = [line.split() for line in f.readlines()]
         with open(bird_basepath+'/bounding_boxes.txt', 'r') as f:
             img_bbs = [line.split() for line in f.readlines()]
+        with open(bird_basepath+'/train_test_split.txt', 'r') as f:
+            splits = [line.split() for line in f.readlines()]
 
         pathdf = pd.DataFrame(img_paths, columns='image_id image_path'.split())
         boxdf = pd.DataFrame(img_bbs, columns='image_id x y w h'.split())
-        bird_df = pd.merge(pathdf, boxdf, on='image_id')
+        splitdf = pd.DataFrame(splits, columns='image_id is_train'.split())
+
+        bird_df = reduce(lambda x, y: pd.merge(x, y, on='image_id'),
+                         [pathdf, boxdf, splitdf])
         bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
                                                 in [p.x,p.y,p.w,p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
         bird_df['region_id'] = 0
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
 
-        column_order = 'i_corpus image_id region_id image_path bb'.split()
+        column_order = 'i_corpus image_id region_id image_path bb is_train'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
