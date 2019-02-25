@@ -1,3 +1,4 @@
+
 # coding: utf-8
 '''
 Preprocess the original image / text corpora so that information
@@ -27,6 +28,7 @@ import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
 import os
+import glob
 
 from tqdm import tqdm
 
@@ -783,7 +785,7 @@ class TaskFunctions(object):
         flickr_obdf = pd.DataFrame(out, columns=columns)
         self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
 
-    # ======= CUB Birds 2011 Bounding Boxes========
+    # ======= CUB Birds 2011 Bounding Boxes ========
     #
     def tsk_birdbb(self):
         config = self.config
@@ -817,7 +819,7 @@ class TaskFunctions(object):
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
 
-    # ======= CUB Birds 2011 Attributes========
+    # ======= CUB Birds 2011 Attributes ========
     #
     def tsk_birdattr(self):
         config = self.config
@@ -853,7 +855,7 @@ class TaskFunctions(object):
         cub_attrdf = attrdf[column_order]
         self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
 
-    # ======= CUB Birds 2011 Parts========
+    # ======= CUB Birds 2011 Parts ========
     #
     def tsk_birdparts(self):
         config = self.config
@@ -887,6 +889,36 @@ class TaskFunctions(object):
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
+
+    # ======= CUB Birds 2011 Captions ========
+    #
+    def tsk_birdcap(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Captions', indent=4)
+
+        bird_cappath = config.get('CUB_BIRDS', 'bird_captions')
+
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                typ='frame', orient='split',
+                                compression='gzip')
+
+        caption_rows = []
+        for path in glob.glob(bird_cappath+'/*/*.txt'):
+            with open(path , 'r') as f:
+                captions = [line for line in f.read().split('\n') if line != '']
+            image_path = re.search(bird_cappath+'(.*).txt', path).group(1)
+            for cap in captions:
+                caption_rows.append({'image_path':image_path+'.jpg', 'refexp':cap})
+
+        captiondf = pd.DataFrame(caption_rows)
+        completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
+
+        column_order = 'i_corpus image_id refexp'.split()
+        cub_capdf = completedf[column_order]
+        self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
+
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -918,7 +950,7 @@ if __name__ == '__main__':
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
-                                 'birdbb', 'birdattr', 'birdparts',
+                                 'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
