@@ -795,7 +795,7 @@ class TaskFunctions(object):
 
         bird_basepath = config.get('CUB_BIRDS', 'birds_base')
 
-        with open(bird_basepath+'/images.txt','r') as f:
+        with open(bird_basepath+'/images.txt', 'r') as f:
             img_paths = [line.split() for line in f.readlines()]
         with open(bird_basepath+'/bounding_boxes.txt', 'r') as f:
             img_bbs = [line.split() for line in f.readlines()]
@@ -811,8 +811,9 @@ class TaskFunctions(object):
         bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
                                                 in [p.x,p.y,p.w,p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
-        bird_df['region_id'] = 0
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
+        bird_df['category'] = bird_df['image_path'].apply(
+            lambda x: x.split('/')[0].split('.')[1])
 
         column_order = 'i_corpus image_id region_id image_path bb is_train'.split()
         cub_bbdf = bird_df[column_order]
@@ -827,31 +828,31 @@ class TaskFunctions(object):
 
         print_timestamped_message('... Caltech-UCSD Birds-200-2011 Attributes', indent=4)
 
-        bird_attrpath = config.get('CUB_BIRDS', 'birds_attributes')
+        bird_attrpath = config.get('CUB_BIRDS', 'birds_base') + '/attributes'
 
         # this requires cub_bbdf to be present in the default out dir
         cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
-                                    typ='frame', orient='split',
-                                    compression='gzip')
+                                typ='frame', orient='split',
+                                compression='gzip')
         attr_dict = {}
-        with open(bird_attrpath+'/attributes.txt','r') as f:
+        with open(bird_attrpath+'/attributes.txt', 'r') as f:
             for line in f.readlines():
                 line_info = re.search(r'(\d+) (.+)::(.+)', line)
-                attr_dict[line_info.group(1)] = line_info.group(2,3)
+                attr_dict[line_info.group(1)] = line_info.group(2, 3)
 
-        with open(bird_attrpath+'/image_attribute_labels.txt','r') as f:
-            #save the attributes for which is_present is true
-            attr_labels = [line.split() for line in f.readlines() if line.split()[2]=='1']
+        with open(bird_attrpath+'/image_attribute_labels.txt', 'r') as f:
+            # save the attributes for which is_present is true
+            attr_labels = [line.split() for line in f.readlines() if line.split()[2] == '1']
 
         tempdf = pd.DataFrame(attr_labels, columns='image_id attribute_id is_present certainty_id time trash'.split())
         cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
         attrdf = pd.merge(tempdf, cub_bbdf, on='image_id')
 
-        attrdf['attribute_name'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
-        attrdf['attribute_value'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
+        attrdf['att'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
+        attrdf['val'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
         attrdf['i_corpus'] = icorpus_code['cub_birds']
 
-        column_order = 'i_corpus image_id attribute_name attribute_value'.split()
+        column_order = 'i_corpus image_id att val'.split()
         cub_attrdf = attrdf[column_order]
         self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
 
@@ -863,21 +864,21 @@ class TaskFunctions(object):
 
         print_timestamped_message('... Caltech-UCSD Birds-200-2011 Parts', indent=4)
 
-        bird_partpath = config.get('CUB_BIRDS', 'birds_parts')
+        bird_partpath = config.get('CUB_BIRDS', 'birds_base') + '/parts'
 
-        with open(bird_partpath+'/part_locs.txt','r') as f:
-            part_locs = [line.split() for line in f.readlines() if line.split()[4]=='1']
+        with open(bird_partpath+'/part_locs.txt', 'r') as f:
+            part_locs = [line.split() for line in f.readlines() if line.split()[4] == '1']
 
         bird_part_dict = {}
-        with open(bird_partpath+'/parts.txt','r') as f:
+        with open(bird_partpath+'/parts.txt', 'r') as f:
             for line in f.readlines():
-                parts = line.strip().split(' ',1)
+                parts = line.strip().split(' ', 1)
                 bird_part_dict[parts[0]] = parts[1]
 
         # this requires cub_bbdf to be present in the default out dir
         cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
-                                    typ='frame', orient='split',
-                                    compression='gzip')
+                                typ='frame', orient='split',
+                                compression='gzip')
 
         tempdf = pd.DataFrame(part_locs, columns='image_id part_id x y visible'.split())
         cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
@@ -888,7 +889,6 @@ class TaskFunctions(object):
         column_order = 'i_corpus image_id part_name x y'.split()
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
-
 
     # ======= CUB Birds 2011 Captions ========
     #
@@ -906,11 +906,12 @@ class TaskFunctions(object):
 
         caption_rows = []
         for path in glob.glob(bird_cappath+'/*/*.txt'):
-            with open(path , 'r') as f:
+            with open(path, 'r') as f:
                 captions = [line for line in f.read().split('\n') if line != '']
             image_path = re.search(bird_cappath+'(.*).txt', path).group(1)
             for cap in captions:
-                caption_rows.append({'image_path':image_path+'.jpg', 'refexp':cap})
+                caption_rows.append({'image_path': image_path+'.jpg',
+                                     'refexp': cap})
 
         captiondf = pd.DataFrame(caption_rows)
         completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
@@ -920,6 +921,7 @@ class TaskFunctions(object):
         column_order = 'i_corpus image_id refexp cat'.split()
         cub_capdf = completedf[column_order]
         self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
