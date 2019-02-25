@@ -915,7 +915,9 @@ class TaskFunctions(object):
         captiondf = pd.DataFrame(caption_rows)
         completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
 
-        column_order = 'i_corpus image_id refexp'.split()
+        completedf['cat'] = completedf.image_path.apply(lambda x: re.search('(.*)/', x).group(1))
+
+        column_order = 'i_corpus image_id refexp cat'.split()
         cub_capdf = completedf[column_order]
         self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
 
