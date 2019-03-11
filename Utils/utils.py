@@ -17,9 +17,9 @@ icorpus_code = {
     'image_net': 4,        # ImageNet; with bbs
     'visual_genome': 5,    # VG, images and regions from visual genome
     'ade_20k': 6,          # ADE, images from ade 20k corpus
-    'tingdataset': 7,  # https://tingh.github.io/resources/object_description
-    'flickr_30k': 8,   # flickr 30k Entities
-    'cub_birds': 9     # http://www.vision.caltech.edu/visipedia/CUB-200-2011.html
+    'tingdataset': 7,   # https://tingh.github.io/resources/object_description
+    'flickr_30k': 8,    # flickr 30k Entities
+    'cub_birds': 9,    # http://www.vision.caltech.edu/visipedia/CUB-200-2011.html
     }
 
 
@@ -97,9 +97,16 @@ def flickr_image_filename(config, image_id):
 def join_imagenet_id(image_id, region_id):
     return 'n%08d_%d' % (image_id, region_id)
 
+
 def birds_filename(config, image_path):
-    bird_image_root = config.get('CUB_BIRDS', 'birds_images')
+    # N.B.: This breaks the API to get_image_filename. Unlike
+    #  for all other corpora, one has to pass the path and not
+    #  the image_id here. Not sure what the fix should be,
+    #  other than making the path the image id. But it
+    #  will cause problems later, I'm sure. 2019-02-14
+    bird_image_root = config.get('CUB_BIRDS', 'birds_base') + '/images'
     return bird_image_root + '/' + image_path
+
 
 def get_image_filename(config, icorp, image_id):
     if 'saiapr' in code_icorpus[icorp]:

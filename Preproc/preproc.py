@@ -10,6 +10,7 @@ to json)
 
 from __future__ import division
 
+from operator import itemgetter
 import argparse
 import re
 import ConfigParser
@@ -20,6 +21,7 @@ from ijson import items
 import cPickle as pickle
 import logging
 from itertools import chain
+import glob
 
 import numpy as np
 import scipy.io
@@ -27,6 +29,7 @@ import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
 import os
+import glob
 
 from tqdm import tqdm
 
@@ -36,6 +39,7 @@ from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
+from ade_helpers import id_mask, ade_path_data, ade_annotation, get_ade_bb
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -783,7 +787,7 @@ class TaskFunctions(object):
         flickr_obdf = pd.DataFrame(out, columns=columns)
         self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
 
-    # ======= CUB Birds 2011 Bounding Boxes========
+    # ======= CUB Birds 2011 Bounding Boxes ========
     #
     def tsk_birdbb(self):
         config = self.config
@@ -793,26 +797,30 @@ class TaskFunctions(object):
 
         bird_basepath = config.get('CUB_BIRDS', 'birds_base')
 
-        with open(bird_basepath+'/images.txt','r') as f:
+        with open(bird_basepath+'/images.txt', 'r') as f:
             img_paths = [line.split() for line in f.readlines()]
         with open(bird_basepath+'/bounding_boxes.txt', 'r') as f:
             img_bbs = [line.split() for line in f.readlines()]
+        with open(bird_basepath+'/train_test_split.txt', 'r') as f:
+            splits = [line.split() for line in f.readlines()]
 
         pathdf = pd.DataFrame(img_paths, columns='image_id image_path'.split())
         boxdf = pd.DataFrame(img_bbs, columns='image_id x y w h'.split())
-        bird_df = pd.merge(pathdf, boxdf, on='image_id')
+        splitdf = pd.DataFrame(splits, columns='image_id is_train'.split())
+
+        bird_df = reduce(lambda x, y: pd.merge(x, y, on='image_id'),
+                         [pathdf, boxdf, splitdf])
         bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
                                                 in [p.x,p.y,p.w,p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
-        bird_df['region_id'] = 0
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
 
-        column_order = 'i_corpus image_id region_id image_path bb'.split()
+        column_order = 'i_corpus image_id image_path bb is_train'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
 
-    # ======= CUB Birds 2011 Attributes========
+    # ======= CUB Birds 2011 Attributes ========
     #
     def tsk_birdattr(self):
         config = self.config
@@ -820,35 +828,35 @@ class TaskFunctions(object):
 
         print_timestamped_message('... Caltech-UCSD Birds-200-2011 Attributes', indent=4)
 
-        bird_attrpath = config.get('CUB_BIRDS', 'birds_attributes')
+        bird_attrpath = config.get('CUB_BIRDS', 'birds_base') + '/attributes'
 
         # this requires cub_bbdf to be present in the default out dir
         cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
-                                    typ='frame', orient='split',
-                                    compression='gzip')
+                                typ='frame', orient='split',
+                                compression='gzip')
         attr_dict = {}
-        with open(bird_attrpath+'/attributes.txt','r') as f:
+        with open(bird_attrpath+'/attributes.txt', 'r') as f:
             for line in f.readlines():
                 line_info = re.search(r'(\d+) (.+)::(.+)', line)
-                attr_dict[line_info.group(1)] = line_info.group(2,3)
+                attr_dict[line_info.group(1)] = line_info.group(2, 3)
 
-        with open(bird_attrpath+'/image_attribute_labels.txt','r') as f:
-            #save the attributes for which is_present is true
-            attr_labels = [line.split() for line in f.readlines() if line.split()[2]=='1']
+        with open(bird_attrpath+'/image_attribute_labels.txt', 'r') as f:
+            # save the attributes for which is_present is true
+            attr_labels = [line.split() for line in f.readlines() if line.split()[2] == '1']
 
         tempdf = pd.DataFrame(attr_labels, columns='image_id attribute_id is_present certainty_id time trash'.split())
         cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
         attrdf = pd.merge(tempdf, cub_bbdf, on='image_id')
 
-        attrdf['attribute_name'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
-        attrdf['attribute_value'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
+        attrdf['att'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][0])
+        attrdf['val'] = attrdf.attribute_id.apply(lambda x: attr_dict[x][1])
         attrdf['i_corpus'] = icorpus_code['cub_birds']
 
-        column_order = 'i_corpus image_id attribute_name attribute_value'.split()
+        column_order = 'i_corpus image_id att val'.split()
         cub_attrdf = attrdf[column_order]
         self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
 
-    # ======= CUB Birds 2011 Parts========
+    # ======= CUB Birds 2011 Parts ========
     #
     def tsk_birdparts(self):
         config = self.config
@@ -856,21 +864,21 @@ class TaskFunctions(object):
 
         print_timestamped_message('... Caltech-UCSD Birds-200-2011 Parts', indent=4)
 
-        bird_partpath = config.get('CUB_BIRDS', 'birds_parts')
+        bird_partpath = config.get('CUB_BIRDS', 'birds_base') + '/parts'
 
-        with open(bird_partpath+'/part_locs.txt','r') as f:
-            part_locs = [line.split() for line in f.readlines() if line.split()[4]=='1']
+        with open(bird_partpath+'/part_locs.txt', 'r') as f:
+            part_locs = [line.split() for line in f.readlines() if line.split()[4] == '1']
 
         bird_part_dict = {}
-        with open(bird_partpath+'/parts.txt','r') as f:
+        with open(bird_partpath+'/parts.txt', 'r') as f:
             for line in f.readlines():
-                parts = line.strip().split(' ',1)
+                parts = line.strip().split(' ', 1)
                 bird_part_dict[parts[0]] = parts[1]
 
         # this requires cub_bbdf to be present in the default out dir
         cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
-                                    typ='frame', orient='split',
-                                    compression='gzip')
+                                typ='frame', orient='split',
+                                compression='gzip')
 
         tempdf = pd.DataFrame(part_locs, columns='image_id part_id x y visible'.split())
         cub_bbdf['image_id'] = cub_bbdf['image_id'].astype('str')
@@ -881,6 +889,165 @@ class TaskFunctions(object):
         column_order = 'i_corpus image_id part_name x y'.split()
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
+
+    # ======= ADE 20K part relations & objects========
+    #
+    def tsk_aderel(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('...ADE 20K Part-of Relations & Objects', indent=4)
+
+        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+
+        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+        corpus_id = icorpus_code['ade_20k']
+
+        part_relations = []
+        ade_objects = []
+        for n, (image_cat, image_id, filename) in tqdm(enumerate(image_paths)):
+            if 'outliers' not in image_cat and 'misc' not in image_cat:
+                # print image_cat, image_id, filename
+                seg_files = glob.glob(ade_basepath+'/'+image_cat+'/'+filename+'*.png')
+                level_arrays = []
+                for file in seg_files:
+                    if 'seg' in file:
+                        level_arrays.append((0, plt.imread(file)))
+                    elif 'parts' in file:
+                        level = re.search(r'.*parts_(.).png', file).group(1)
+                        level_arrays.append((level, plt.imread(file)))
+                level_arrays = sorted(level_arrays, key=itemgetter(0))
+                level_masks = [(lvl, id_mask(array)) for lvl, array in level_arrays]
+
+                # record the total number of objects for comparison with annotations
+                object_no = 0
+                for n, mask in level_masks:
+                    object_no += len(np.unique(mask))-1  # not counting 0
+
+                annotation_file = ade_annotation(ade_basepath, image_cat, filename)
+                with open(annotation_file, 'r') as ann_f:
+                    annotation_lines = ann_f.read().split('\n')
+                annotation_lines = [ann for ann in annotation_lines if ann != '']
+
+                # inconsistency check
+                if len(annotation_lines) > object_no:
+                    print(image_id, 'inc')
+                    with open(args.out_dir + '/ade_inconsistent_images.txt', 'a') as f:
+                        f.write(ade_basepath+image_cat+'/'+filename+'\n')
+                    continue
+
+                for level, mask in level_masks[1:]:
+                    for small in np.unique(mask)[1:]:
+                        small_mask = np.where(mask == small)
+                        int_big = level_masks[int(level)-1][1]
+                        big_mask = int_big[small_mask]
+                        if all(big_mask == big_mask[0]):
+                            part_relations.append({'i_corpus': corpus_id,
+                                                   'image_id': image_id,
+                                                   'region_id': big_mask[0],
+                                                   'region_level': int(level)-1,
+                                                   'part_id': small,
+                                                   'part_level': int(level)})
+
+                for this_line in annotation_lines:
+                    obj_id = this_line.split(' # ')[0]
+                    level = this_line.split(' # ')[1]
+                    wnsyns = this_line.split(' # ')[3]
+                    label = this_line.split(' # ')[4]
+                    if this_line.split(' # ')[5] != "":
+                        attrs = this_line.split(' # ')[5].strip('\"')
+                    else:
+                        attrs = False
+                    if this_line.split(' # ')[2] == '0':
+                        occl = False
+                    else:
+                        occl = True
+
+                    bb = get_ade_bb(level_arrays[int(level)][1], obj_id)
+
+                    # print obj_id, level, bb, image_id, label
+                    ade_objects.append({'i_corpus': corpus_id,
+                                        'image_id': image_id,
+                                        'level': level,
+                                        'region_id': obj_id,
+                                        'bb': bb,
+                                        'label': label,
+                                        'synset': wnsyns,
+                                        'attr': attrs,
+                                        'occl': occl})
+
+        relations_df = pd.DataFrame(part_relations)
+        self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
+
+        objects_df = pd.DataFrame(ade_objects)
+        self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
+
+    # ======= ADE 20K images ========
+    #
+    def tsk_adeimgs(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
+
+        image_basepath = config.get('DEFAULT', 'corpora_base')
+        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+
+        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+        corpus_id = icorpus_code['ade_20k']
+
+        image_dataframe = []
+        for (image_cat, image_id, filename) in image_paths:
+            if 'outliers' not in image_cat and 'misc' not in image_cat:
+                print image_cat, image_id, filename
+                if 'training' in image_cat:
+                    this_set = 'training'
+                    this_cat = image_cat.split('training/')[1]
+                elif 'validation' in image_cat:
+                    this_set = 'validation'
+                    this_cat = image_cat.split('validation/')[1]
+                image_dataframe.append({'i_corpus': corpus_id,
+                                        'image_id': image_id,
+                                        'filename': filename+'.jpg',
+                                        'image_cat': this_cat,
+                                        'set': this_set})
+
+        images_df = pd.DataFrame(image_dataframe)
+        self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
+
+    # ======= CUB Birds 2011 Captions ========
+    #
+    def tsk_birdcap(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Captions', indent=4)
+
+        bird_cappath = config.get('CUB_BIRDS', 'bird_captions')
+
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                typ='frame', orient='split',
+                                compression='gzip')
+
+        caption_rows = []
+        for path in glob.glob(bird_cappath+'/*/*.txt'):
+            with open(path, 'r') as f:
+                captions = [line for line in f.read().split('\n') if line != '']
+            image_path = re.search(bird_cappath+'(.*).txt', path).group(1)
+            for cap in captions:
+                caption_rows.append({'image_path': image_path+'.jpg',
+                                     'refexp': cap})
+
+        captiondf = pd.DataFrame(caption_rows)
+        completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
+
+        completedf['cat'] = completedf.image_path.apply(lambda x: re.search('(.*)/', x).group(1))
+
+        column_order = 'i_corpus image_id refexp cat'.split()
+        cub_capdf = completedf[column_order]
+
+        self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -913,7 +1080,8 @@ if __name__ == '__main__':
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
-                                 'birdbb', 'birdattr', 'birdparts',
+                                 'birdbb', 'birdattr', 'birdparts', 'birdcap',
+                                 'aderel', 'adeimgs',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
