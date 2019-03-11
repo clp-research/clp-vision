@@ -10,6 +10,7 @@ to json)
 
 from __future__ import division
 
+from operator import itemgetter
 import argparse
 import re
 import ConfigParser
@@ -20,6 +21,7 @@ from ijson import items
 import cPickle as pickle
 import logging
 from itertools import chain
+import glob
 
 import numpy as np
 import scipy.io
@@ -36,6 +38,7 @@ from utils import icorpus_code, saiapr_image_filename, get_saiapr_bb
 from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
+from ade_helpers import id_mask, ade_path_data, ade_annotation, get_ade_bb
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -54,7 +57,7 @@ tagger = nltk.tag.perceptron.PerceptronTagger()
 
 
 def postag(refexp):
-    return nltk.tag._pos_tag(nltk.word_tokenize(refexp), None, tagger)
+    return nltk.tag._pos_tag(nltk.word_tokenize(refexp), None, tagger, lang='eng')
 
 
 # ========= the actual preproc tasks, wrapped in class  ===========
@@ -883,6 +886,131 @@ class TaskFunctions(object):
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
+    # ======= ADE 20K part relations & objects========
+    #
+    def tsk_aderel(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('...ADE 20K Part-of Relations & Objects', indent=4)
+
+        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+
+        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+        corpus_id = icorpus_code['ade_20k']
+
+        part_relations = []
+        ade_objects = []
+        for n, (image_cat, image_id, filename) in tqdm(enumerate(image_paths)):
+            if 'outliers' not in image_cat and 'misc' not in image_cat:
+                # print image_cat, image_id, filename
+                seg_files = glob.glob(ade_basepath+'/'+image_cat+'/'+filename+'*.png')
+                level_arrays = []
+                for file in seg_files:
+                    if 'seg' in file:
+                        level_arrays.append((0, plt.imread(file)))
+                    elif 'parts' in file:
+                        level = re.search(r'.*parts_(.).png', file).group(1)
+                        level_arrays.append((level, plt.imread(file)))
+                level_arrays = sorted(level_arrays, key=itemgetter(0))
+                level_masks = [(lvl, id_mask(array)) for lvl, array in level_arrays]
+
+                # record the total number of objects for comparison with annotations
+                object_no = 0
+                for n, mask in level_masks:
+                    object_no += len(np.unique(mask))-1  # not counting 0
+
+                annotation_file = ade_annotation(ade_basepath, image_cat, filename)
+                with open(annotation_file, 'r') as ann_f:
+                    annotation_lines = ann_f.read().split('\n')
+                annotation_lines = [ann for ann in annotation_lines if ann != '']
+
+                # inconsistency check
+                if len(annotation_lines) > object_no:
+                    print(image_id, 'inc')
+                    with open(args.out_dir + '/ade_inconsistent_images.txt', 'a') as f:
+                        f.write(ade_basepath+image_cat+'/'+filename+'\n')
+                    continue
+
+                for level, mask in level_masks[1:]:
+                    for small in np.unique(mask)[1:]:
+                        small_mask = np.where(mask == small)
+                        int_big = level_masks[int(level)-1][1]
+                        big_mask = int_big[small_mask]
+                        if all(big_mask == big_mask[0]):
+                            part_relations.append({'i_corpus': corpus_id,
+                                                   'image_id': image_id,
+                                                   'region_id': big_mask[0],
+                                                   'region_level': int(level)-1,
+                                                   'part_id': small,
+                                                   'part_level': int(level)})
+
+                for this_line in annotation_lines:
+                    obj_id = this_line.split(' # ')[0]
+                    level = this_line.split(' # ')[1]
+                    wnsyns = this_line.split(' # ')[3]
+                    label = this_line.split(' # ')[4]
+                    if this_line.split(' # ')[5] != "":
+                        attrs = this_line.split(' # ')[5].strip('\"')
+                    else:
+                        attrs = False
+                    if this_line.split(' # ')[2] == '0':
+                        occl = False
+                    else:
+                        occl = True
+
+                    bb = get_ade_bb(level_arrays[int(level)][1], obj_id)
+
+                    # print obj_id, level, bb, image_id, label
+                    ade_objects.append({'i_corpus': corpus_id,
+                                        'image_id': image_id,
+                                        'level': level,
+                                        'region_id': obj_id,
+                                        'bb': bb,
+                                        'label': label,
+                                        'synset': wnsyns,
+                                        'attr': attrs,
+                                        'occl': occl})
+
+        relations_df = pd.DataFrame(part_relations)
+        self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
+
+        objects_df = pd.DataFrame(ade_objects)
+        self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
+
+    # ======= ADE 20K images ========
+    #
+    def tsk_adeimgs(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
+
+        image_basepath = config.get('DEFAULT', 'corpora_base')
+        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+
+        image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+        corpus_id = icorpus_code['ade_20k']
+
+        image_dataframe = []
+        for (image_cat, image_id, filename) in image_paths:
+            if 'outliers' not in image_cat and 'misc' not in image_cat:
+                print image_cat, image_id, filename
+                if 'training' in image_cat:
+                    this_set = 'training'
+                    this_cat = image_cat.split('training/')[1]
+                elif 'validation' in image_cat:
+                    this_set = 'validation'
+                    this_cat = image_cat.split('validation/')[1]
+                image_dataframe.append({'i_corpus': corpus_id,
+                                        'image_id': image_id,
+                                        'filename': filename+'.jpg',
+                                        'image_cat': this_cat,
+                                        'set': this_set})
+
+        images_df = pd.DataFrame(image_dataframe)
+        self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -916,6 +1044,7 @@ if __name__ == '__main__':
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts',
+                                 'aderel', 'adeimgs',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
