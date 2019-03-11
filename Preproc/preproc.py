@@ -1,4 +1,3 @@
-
 # coding: utf-8
 '''
 Preprocess the original image / text corpora so that information
