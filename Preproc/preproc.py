@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
 import os
+import glob
 
 from tqdm import tqdm
 
@@ -786,7 +787,7 @@ class TaskFunctions(object):
         flickr_obdf = pd.DataFrame(out, columns=columns)
         self._dumpDF(flickr_obdf, args.out_dir + '/flickr_objdf.json', args)
 
-    # ======= CUB Birds 2011 Bounding Boxes========
+    # ======= CUB Birds 2011 Bounding Boxes ========
     #
     def tsk_birdbb(self):
         config = self.config
@@ -800,23 +801,26 @@ class TaskFunctions(object):
             img_paths = [line.split() for line in f.readlines()]
         with open(bird_basepath+'/bounding_boxes.txt', 'r') as f:
             img_bbs = [line.split() for line in f.readlines()]
+        with open(bird_basepath+'/train_test_split.txt', 'r') as f:
+            splits = [line.split() for line in f.readlines()]
 
         pathdf = pd.DataFrame(img_paths, columns='image_id image_path'.split())
         boxdf = pd.DataFrame(img_bbs, columns='image_id x y w h'.split())
-        bird_df = pd.merge(pathdf, boxdf, on='image_id')
-        bird_df['bb'] = bird_df.apply(lambda p: [int(float(num))
-                                                 for num in [p.x, p.y, p.w, p.h]], axis=1)
+        splitdf = pd.DataFrame(splits, columns='image_id is_train'.split())
+
+        bird_df = reduce(lambda x, y: pd.merge(x, y, on='image_id'),
+                         [pathdf, boxdf, splitdf])
+        bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
+                                                in [p.x,p.y,p.w,p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
-        bird_df['category'] = bird_df['image_path'].apply(
-            lambda x: x.split('/')[0].split('.')[1])
 
-        column_order = 'i_corpus image_id image_path category bb'.split()
+        column_order = 'i_corpus image_id image_path bb is_train'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
 
-    # ======= CUB Birds 2011 Attributes========
+    # ======= CUB Birds 2011 Attributes ========
     #
     def tsk_birdattr(self):
         config = self.config
@@ -852,7 +856,7 @@ class TaskFunctions(object):
         cub_attrdf = attrdf[column_order]
         self._dumpDF(cub_attrdf, args.out_dir + '/cub_attrdf.json', args)
 
-    # ======= CUB Birds 2011 Parts========
+    # ======= CUB Birds 2011 Parts ========
     #
     def tsk_birdparts(self):
         config = self.config
@@ -1011,6 +1015,39 @@ class TaskFunctions(object):
         images_df = pd.DataFrame(image_dataframe)
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
+    # ======= CUB Birds 2011 Captions ========
+    #
+    def tsk_birdcap(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Captions', indent=4)
+
+        bird_cappath = config.get('CUB_BIRDS', 'bird_captions')
+
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                typ='frame', orient='split',
+                                compression='gzip')
+
+        caption_rows = []
+        for path in glob.glob(bird_cappath+'/*/*.txt'):
+            with open(path, 'r') as f:
+                captions = [line for line in f.read().split('\n') if line != '']
+            image_path = re.search(bird_cappath+'(.*).txt', path).group(1)
+            for cap in captions:
+                caption_rows.append({'image_path': image_path+'.jpg',
+                                     'refexp': cap})
+
+        captiondf = pd.DataFrame(caption_rows)
+        completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
+
+        completedf['cat'] = completedf.image_path.apply(lambda x: re.search('(.*)/', x).group(1))
+
+        column_order = 'i_corpus image_id refexp cat'.split()
+        cub_capdf = completedf[column_order]
+
+        self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -1043,7 +1080,7 @@ if __name__ == '__main__':
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
-                                 'birdbb', 'birdattr', 'birdparts',
+                                 'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'aderel', 'adeimgs',
                                  'all'],
                         help='''
