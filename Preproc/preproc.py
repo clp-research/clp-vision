@@ -1015,6 +1015,39 @@ class TaskFunctions(object):
         images_df = pd.DataFrame(image_dataframe)
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
+    # ======= CUB Birds 2011 Captions ========
+    #
+    def tsk_birdcap(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Captions', indent=4)
+
+        bird_cappath = config.get('CUB_BIRDS', 'bird_captions')
+
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                typ='frame', orient='split',
+                                compression='gzip')
+
+        caption_rows = []
+        for path in glob.glob(bird_cappath+'/*/*.txt'):
+            with open(path, 'r') as f:
+                captions = [line for line in f.read().split('\n') if line != '']
+            image_path = re.search(bird_cappath+'(.*).txt', path).group(1)
+            for cap in captions:
+                caption_rows.append({'image_path': image_path+'.jpg',
+                                     'refexp': cap})
+
+        captiondf = pd.DataFrame(caption_rows)
+        completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
+
+        completedf['cat'] = completedf.image_path.apply(lambda x: re.search('(.*)/', x).group(1))
+
+        column_order = 'i_corpus image_id refexp cat'.split()
+        cub_capdf = completedf[column_order]
+
+        self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
