@@ -1033,7 +1033,7 @@ class TaskFunctions(object):
         for path in glob.glob(bird_cappath+'/*/*.txt'):
             with open(path, 'r') as f:
                 captions = [line for line in f.read().split('\n') if line != '']
-            image_path = re.search(bird_cappath+'(.*).txt', path).group(1)
+            image_path = re.search(bird_cappath+'/(.*).txt', path).group(1)
             for cap in captions:
                 caption_rows.append({'image_path': image_path+'.jpg',
                                      'refexp': cap})
