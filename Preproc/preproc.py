@@ -811,11 +811,13 @@ class TaskFunctions(object):
         bird_df = reduce(lambda x, y: pd.merge(x, y, on='image_id'),
                          [pathdf, boxdf, splitdf])
         bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
-                                                in [p.x,p.y,p.w,p.h]], axis=1)
+                                                 in [p.x, p.y, p.w, p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
+        bird_df['category'] = bird_df['image_path'].apply(
+            lambda x: x.split('/')[0].split('.')[1])
 
-        column_order = 'i_corpus image_id image_path bb is_train'.split()
+        column_order = 'i_corpus image_id image_path category bb is_train'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
@@ -890,6 +892,39 @@ class TaskFunctions(object):
         cub_partdf = partdf[column_order]
         self._dumpDF(cub_partdf, args.out_dir + '/cub_partdf.json', args)
 
+    # ======= CUB Birds 2011 Captions ========
+    #
+    def tsk_birdcap(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Captions', indent=4)
+
+        bird_cappath = config.get('CUB_BIRDS', 'birds_caps')
+
+        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
+                                typ='frame', orient='split',
+                                compression='gzip')
+
+        caption_rows = []
+        for path in glob.glob(bird_cappath+'/*/*.txt'):
+            with open(path, 'r') as f:
+                captions = [line for line in f.read().split('\n') if line != '']
+            image_path = re.search(bird_cappath+'/(.*).txt', path).group(1)
+            for cap in captions:
+                caption_rows.append({'image_path': image_path+'.jpg',
+                                     'caption': cap})
+
+        captiondf = pd.DataFrame(caption_rows)
+        completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
+
+        completedf['cat'] = completedf.image_path.apply(lambda x: re.search('(.*)/', x).group(1))
+
+        column_order = 'i_corpus image_id caption cat'.split()
+        cub_capdf = completedf[column_order]
+
+        self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
+
     # ======= ADE 20K part relations & objects========
     #
     def tsk_aderel(self):
@@ -898,7 +933,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('...ADE 20K Part-of Relations & Objects', indent=4)
 
-        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+        ade_basepath = config.get('ADE_20K', 'ade_base')
 
         image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
         corpus_id = icorpus_code['ade_20k']
@@ -990,8 +1025,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
 
-        image_basepath = config.get('DEFAULT', 'corpora_base')
-        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+        ade_basepath = config.get('ADE_20K', 'ade_base')
 
         image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
         corpus_id = icorpus_code['ade_20k']
@@ -999,7 +1033,6 @@ class TaskFunctions(object):
         image_dataframe = []
         for (image_cat, image_id, filename) in image_paths:
             if 'outliers' not in image_cat and 'misc' not in image_cat:
-                print image_cat, image_id, filename
                 if 'training' in image_cat:
                     this_set = 'training'
                     this_cat = image_cat.split('training/')[1]
@@ -1010,43 +1043,11 @@ class TaskFunctions(object):
                                         'image_id': image_id,
                                         'filename': filename+'.jpg',
                                         'image_cat': this_cat,
-                                        'set': this_set})
+                                        'split': this_set})
 
         images_df = pd.DataFrame(image_dataframe)
+        images_df = images_df['i_corpus image_id image_cat split filename'.split()]
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
-
-    # ======= CUB Birds 2011 Captions ========
-    #
-    def tsk_birdcap(self):
-        config = self.config
-        args = self.args
-
-        print_timestamped_message('... Caltech-UCSD Birds-200-2011 Captions', indent=4)
-
-        bird_cappath = config.get('CUB_BIRDS', 'bird_captions')
-
-        cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
-                                typ='frame', orient='split',
-                                compression='gzip')
-
-        caption_rows = []
-        for path in glob.glob(bird_cappath+'/*/*.txt'):
-            with open(path, 'r') as f:
-                captions = [line for line in f.read().split('\n') if line != '']
-            image_path = re.search(bird_cappath+'(.*).txt', path).group(1)
-            for cap in captions:
-                caption_rows.append({'image_path': image_path+'.jpg',
-                                     'refexp': cap})
-
-        captiondf = pd.DataFrame(caption_rows)
-        completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
-
-        completedf['cat'] = completedf.image_path.apply(lambda x: re.search('(.*)/', x).group(1))
-
-        column_order = 'i_corpus image_id refexp cat'.split()
-        cub_capdf = completedf[column_order]
-
-        self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
 
 
 # ======== MAIN =========

@@ -108,6 +108,17 @@ def birds_filename(config, image_path):
     return bird_image_root + '/' + image_path
 
 
+def ade_filename(config, image_info):
+    # ==> split, cat, filename = image_info
+    #
+    # N.B.: This similarly breaks the API, in that
+    #   image_id is not enough to get at file.
+    split, cat, filename = image_info
+    this_path = '/'.join([split, cat, filename])
+    ade_image_root = config.get('ADE_20K', 'ade_base') + '/images'
+    return ade_image_root + '/' + this_path
+
+
 def get_image_filename(config, icorp, image_id):
     if 'saiapr' in code_icorpus[icorp]:
         return saiapr_image_filename(config, image_id)
@@ -119,6 +130,8 @@ def get_image_filename(config, icorp, image_id):
         return flickr_image_filename(config, image_id)
     if code_icorpus[icorp] == 'cub_birds':
         return birds_filename(config, image_id)
+    if code_icorpus[icorp] == 'ade_20k':
+        return ade_filename(config, image_id)
     raise ValueError('Unknown corpus code')
 
 
