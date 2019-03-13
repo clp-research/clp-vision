@@ -933,7 +933,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('...ADE 20K Part-of Relations & Objects', indent=4)
 
-        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+        ade_basepath = config.get('ADE_20K', 'ade_base')
 
         image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
         corpus_id = icorpus_code['ade_20k']
@@ -1025,7 +1025,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
 
-        ade_basepath = config.get('ADE_20K', 'ade_basepath')
+        ade_basepath = config.get('ADE_20K', 'ade_base')
 
         image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
         corpus_id = icorpus_code['ade_20k']
@@ -1043,10 +1043,10 @@ class TaskFunctions(object):
                                         'image_id': image_id,
                                         'filename': filename+'.jpg',
                                         'image_cat': this_cat,
-                                        'set': this_set})
+                                        'split': this_set})
 
         images_df = pd.DataFrame(image_dataframe)
-        images_df = images_df['i_corpus image_id image_cat set filename'.split()]
+        images_df = images_df['i_corpus image_id image_cat split filename'.split()]
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
 
