@@ -265,19 +265,25 @@ def plot_img_ax(config, ax, corpus, image_id, title=None):
     ax.axis('off')
 
 
-def query_by_id(df, image_id_tuple, column=None):
+def query_by_id(df, image_id_tuple, third_column='region_id',
+                column=None):
     '''
     Query a dataframe, based on an image id tuple.
 
     If the tuple has two elements, they are interpreted as corpus id and
     image id. If there is one more, this is interpreted as region id.
 
+    third_column is the name of the third_column that is used besides
+    i_corpus and image_id. Default is to use region_id.
+
     If column is None, the whole view on the data frame that matches the
     image id tuple is returned. If it is a single string, the column of
     that name will be returned as list. If it is a list of strings,
     the subset of columns with that name will be returned, as data frame.
     '''
-    query_expression = ['(i_corpus == {})', '(image_id == {})', '(region_id == {})']
+    query_expression = ['(i_corpus == {})',
+                        '(image_id == {})',
+                        '(%s == {})' % (third_column)]
     query_string = []
     for expr, id_part in zip(query_expression, image_id_tuple):
         query_string.append(expr.format(id_part))
