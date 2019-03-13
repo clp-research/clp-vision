@@ -405,8 +405,7 @@ class TaskFunctions(object):
         cococatsdf = pd.DataFrame(coco_in['categories'])
 
         cococatsdf.columns = 'cat_id cat supercat'.split()
-        cococatsdf.index = cococatsdf['cat_id']
-        del(cococatsdf['cat_id'])
+        cococatsdf.set_index('cat_id', drop=True, inplace=True)
 
         self._dumpDF(cococatsdf, args.out_dir + '/mscoco_catsdf.json', args)
 
