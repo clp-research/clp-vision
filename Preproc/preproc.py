@@ -1121,6 +1121,40 @@ class TaskFunctions(object):
                              columns='corpus_id image_id dial_id turn_id q a target all_objs success split'.split())
         self._dumpDF(gw_df, args.out_dir + '/gw_df.json', args)
 
+    # ======= Guess What? ========
+    #
+    def tsk_visdial(self):
+        config = self.config
+
+        corpus_id = icorpus_code['mscoco']
+
+        print_timestamped_message('... VisDial dialogues', indent=4)
+
+        vd_basepath = config.get('VISDIAL', 'vd_base')
+
+        out = []
+
+        for split_json_path in glob.glob(vd_basepath + '/*'):
+            with gzip.open(split_json_path, 'r') as f:
+                dataset = json.load(f)
+                split = dataset['split']
+
+                for n, this_dial in enumerate(dataset['data']['dialogs']):
+                    image_id = this_dial['image_id']
+                    dial_id = n
+                    trigger_caption = this_dial['caption']
+                    for m, this_turn in enumerate(this_dial['dialog']):
+                        question = dataset['data']['questions'][this_turn['question']]
+                        answer = dataset['data']['answers'][this_turn['answer']]
+                        turn_id = m
+
+                        out.append((corpus_id, image_id, dial_id, turn_id,
+                                    question, answer, trigger_caption, split))
+        vd_df = pd.DataFrame(out,
+                             columns='corpus_id image_id dial_id turn_id question answer trigger_caption split'.split())
+
+        self._dumpDF(vd_df, args.out_dir + '/vd_df.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -1155,7 +1189,7 @@ if __name__ == '__main__':
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'aderel', 'adeimgs',
-                                 'guesswhat',
+                                 'guesswhat', 'visdial',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
