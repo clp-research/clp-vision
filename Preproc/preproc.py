@@ -1118,7 +1118,7 @@ class TaskFunctions(object):
                                     this_split))
 
         gw_df = pd.DataFrame(out,
-                             columns='corpus_id image_id dial_id turn_id q a target all_obj success split'.split())
+                             columns='corpus_id image_id dial_id turn_id q a target all_objs success split'.split())
         self._dumpDF(gw_df, args.out_dir + '/gw_df.json', args)
 
 
