@@ -811,11 +811,13 @@ class TaskFunctions(object):
         bird_df = reduce(lambda x, y: pd.merge(x, y, on='image_id'),
                          [pathdf, boxdf, splitdf])
         bird_df['bb'] = bird_df.apply(lambda p: [int(float(num)) for num
-                                                in [p.x,p.y,p.w,p.h]], axis=1)
+                                                 in [p.x, p.y, p.w, p.h]], axis=1)
         bird_df['i_corpus'] = icorpus_code['cub_birds']
         bird_df['image_id'] = pd.to_numeric(bird_df['image_id'])
+        bird_df['category'] = bird_df['image_path'].apply(
+            lambda x: x.split('/')[0].split('.')[1])
 
-        column_order = 'i_corpus image_id image_path bb is_train'.split()
+        column_order = 'i_corpus image_id image_path category bb is_train'.split()
         cub_bbdf = bird_df[column_order]
 
         self._dumpDF(cub_bbdf, args.out_dir + '/cub_bbdf.json', args)
@@ -898,7 +900,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('... Caltech-UCSD Birds-200-2011 Captions', indent=4)
 
-        bird_cappath = config.get('CUB_BIRDS', 'bird_captions')
+        bird_cappath = config.get('CUB_BIRDS', 'birds_caps')
 
         cub_bbdf = pd.read_json(args.out_dir + '/cub_bbdf.json.gz',
                                 typ='frame', orient='split',
@@ -911,14 +913,14 @@ class TaskFunctions(object):
             image_path = re.search(bird_cappath+'/(.*).txt', path).group(1)
             for cap in captions:
                 caption_rows.append({'image_path': image_path+'.jpg',
-                                     'refexp': cap})
+                                     'caption': cap})
 
         captiondf = pd.DataFrame(caption_rows)
         completedf = pd.merge(captiondf, cub_bbdf, on='image_path')
 
         completedf['cat'] = completedf.image_path.apply(lambda x: re.search('(.*)/', x).group(1))
 
-        column_order = 'i_corpus image_id refexp cat'.split()
+        column_order = 'i_corpus image_id caption cat'.split()
         cub_capdf = completedf[column_order]
 
         self._dumpDF(cub_capdf, args.out_dir + '/cub_capdf.json', args)
