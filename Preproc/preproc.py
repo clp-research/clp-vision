@@ -1025,7 +1025,6 @@ class TaskFunctions(object):
 
         print_timestamped_message('...ADE 20K Image Dataframe', indent=4)
 
-        image_basepath = config.get('DEFAULT', 'corpora_base')
         ade_basepath = config.get('ADE_20K', 'ade_basepath')
 
         image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
@@ -1034,7 +1033,6 @@ class TaskFunctions(object):
         image_dataframe = []
         for (image_cat, image_id, filename) in image_paths:
             if 'outliers' not in image_cat and 'misc' not in image_cat:
-                print image_cat, image_id, filename
                 if 'training' in image_cat:
                     this_set = 'training'
                     this_cat = image_cat.split('training/')[1]
@@ -1048,6 +1046,7 @@ class TaskFunctions(object):
                                         'set': this_set})
 
         images_df = pd.DataFrame(image_dataframe)
+        images_df = images_df['i_corpus image_id image_cat set filename'.split()]
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
 
