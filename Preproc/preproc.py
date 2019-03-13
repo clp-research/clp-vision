@@ -22,6 +22,7 @@ import cPickle as pickle
 import logging
 from itertools import chain
 import glob
+import gzip
 
 import numpy as np
 import scipy.io
@@ -354,6 +355,9 @@ class TaskFunctions(object):
         #  all objects. I'm leaving the code commented in here for now,
         #  as I don't know right now whether this might change anything
         #  for old downstream functions.
+        #
+        # 2019-03-13: TODO. This should actually run over validation
+        #   as well. See guesswhat.
 
         config = self.config
         args = self.args
@@ -1075,6 +1079,48 @@ class TaskFunctions(object):
         images_df = images_df['i_corpus image_id image_cat split filename'.split()]
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
+    # ======= Guess What? ========
+    #
+    def tsk_guesswhat(self):
+        config = self.config
+
+        corpus_id = icorpus_code['mscoco']
+
+        print_timestamped_message('... Guess What dialogues', indent=4)
+
+        gw_basepath = config.get('GUESSWHAT', 'gw_base')
+
+        out = []
+
+        for split_json_path in glob.glob(gw_basepath + '/*'):
+            this_file = os.path.basename(split_json_path)
+            this_split = this_file.split('.')[1]
+
+            with gzip.open(split_json_path, 'r') as f:
+                for n, this_line in enumerate(f.readlines()):
+                    this_dial = json.loads(this_line)
+                    # corpus_id, image_id, dialogue_id, turn_id, q, a, target, all_obj, success
+                    image_id = this_dial['image']['id']
+                    dialogue_id = n
+                    target_obj = this_dial['object_id']
+                    success = True if this_dial['status'] == 'success' else False
+                    all_objs = [this_obj['id'] for this_obj in this_dial['objects']]
+                    for this_turn in this_dial['qas']:
+                        out.append((corpus_id,
+                                    image_id,
+                                    dialogue_id,
+                                    this_turn['id'],
+                                    this_turn['question'],
+                                    this_turn['answer'],
+                                    target_obj,
+                                    all_objs,
+                                    success,
+                                    this_split))
+
+        gw_df = pd.DataFrame(out,
+                             columns='corpus_id image_id dial_id turn_id q a target all_obj success split'.split())
+        self._dumpDF(gw_df, args.out_dir + '/gw_df.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -1109,6 +1155,7 @@ if __name__ == '__main__':
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'aderel', 'adeimgs',
+                                 'guesswhat',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
