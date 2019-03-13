@@ -349,6 +349,11 @@ class TaskFunctions(object):
     # ======= MSCOCO bounding boxes ========
     #
     def tsk_mscocobb(self):
+        # 2019-03-13: I have removed the restriction to extracting
+        #  only the files that are in refcoco and grex, to get
+        #  all objects. I'm leaving the code commented in here for now,
+        #  as I don't know right now whether this might change anything
+        #  for old downstream functions.
 
         config = self.config
         args = self.args
@@ -357,23 +362,24 @@ class TaskFunctions(object):
 
         mscoco_path = config.get('MSCOCO', 'mscoco_path')
 
-        with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
-            refcoco_splits = json.load(f)
+        # with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
+        #     refcoco_splits = json.load(f)
 
-        with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
-            grex_splits = json.load(f)
+        # with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
+        #     grex_splits = json.load(f)
 
-        all_coco_files = list(set(chain(*refcoco_splits.values())).union(set(chain(*grex_splits))))
+        # all_coco_files = list(set(chain(*refcoco_splits.values())).union(set(chain(*grex_splits))))
 
-        all_coco_files = [e for e in all_coco_files if type(e) is int]
+        # all_coco_files = [e for e in all_coco_files if type(e) is int]
 
         with open(mscoco_path, 'r') as f:
             coco_in = json.load(f)
 
         cocoandf = pd.DataFrame(coco_in['annotations'])
-        file_df = pd.DataFrame(all_coco_files, columns=['image_id'])
+        # file_df = pd.DataFrame(all_coco_files, columns=['image_id'])
 
-        cocoandf_reduced = pd.merge(cocoandf, file_df)
+        # cocoandf_reduced = pd.merge(cocoandf, file_df)
+        cocoandf_reduced = cocoandf
 
         bbdf_coco = cocoandf_reduced[['image_id', 'id', 'bbox', 'category_id']]
         bbdf_coco['i_corpus'] = icorpus_code['mscoco']
@@ -382,6 +388,27 @@ class TaskFunctions(object):
         bbdf_coco = bbdf_coco['i_corpus image_id region_id bb cat'.split()]
 
         self._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
+
+    # ======= MSCOCO category list ========
+    #
+    def tsk_mscococats(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... MSCOCO Cats', indent=4)
+
+        mscoco_path = config.get('MSCOCO', 'mscoco_path')
+
+        with open(mscoco_path, 'r') as f:
+            coco_in = json.load(f)
+
+        cococatsdf = pd.DataFrame(coco_in['categories'])
+
+        cococatsdf.columns = 'cat_id cat supercat'.split()
+        cococatsdf.index = cococatsdf['cat_id']
+        del(cococatsdf['cat_id'])
+
+        self._dumpDF(cococatsdf, args.out_dir + '/mscoco_catsdf.json', args)
 
     # ======= MSCOCO region proposal bounding boxes ========
     #
@@ -1076,7 +1103,7 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
-                                 'mscococap',
+                                 'mscococap', 'mscococats',
                                  'grexbb', 'visgenimg', 'visgenreg',
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
