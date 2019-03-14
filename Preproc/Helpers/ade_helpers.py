@@ -18,11 +18,13 @@ def ade_path_data(matpath):
     ade_anns = scipy.io.loadmat(matpath)['index'][0][0]
     filenames = np.squeeze(ade_anns[1])
     pathnames = np.squeeze(ade_anns[0])
+    image_no = len(filenames)
     image_data = []
-    for i in range(len(filenames)):
+    for i in range(image_no):
         image_path = str(filenames[i][0]).split('ADE20K_2016_07_26/')[1]
         filename = str(pathnames[i][0]).split('.jpg')[0]
-        image_id = re.search(r'([0-9]+)', filename).group(1)
+        image_id = int(re.search(r'([0-9]+)', filename).group(1))
+        image_id = int(10**np.ceil(np.log10(image_id))) + image_id
         image_data.append((image_path, image_id, filename))
     return image_data
 
