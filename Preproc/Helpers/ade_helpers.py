@@ -24,7 +24,8 @@ def ade_path_data(matpath):
         image_path = str(filenames[i][0]).split('ADE20K_2016_07_26/')[1]
         filename = str(pathnames[i][0]).split('.jpg')[0]
         image_id = int(re.search(r'([0-9]+)', filename).group(1))
-        image_id = int(10**np.ceil(np.log10(image_id))) + image_id
+        if 'val' in filename:
+            image_id = int(10**np.ceil(np.log10(image_no))) + image_id
         image_data.append((image_path, image_id, filename))
     return image_data
 

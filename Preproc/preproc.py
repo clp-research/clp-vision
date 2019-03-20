@@ -1062,6 +1062,7 @@ class TaskFunctions(object):
 
         image_dataframe = []
         for (image_cat, image_id, filename) in image_paths:
+            print image_cat, image_id, filename
             if 'outliers' not in image_cat and 'misc' not in image_cat:
                 if 'training' in image_cat:
                     this_set = 'training'
