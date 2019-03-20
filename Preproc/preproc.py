@@ -1017,7 +1017,7 @@ class TaskFunctions(object):
                 for this_line in annotation_lines:
                     obj_id = this_line.split(' # ')[0]
                     level = this_line.split(' # ')[1]
-                    wnsyns = this_line.split(' # ')[3]
+                    wn_lemmas = this_line.split(' # ')[3]
                     label = this_line.split(' # ')[4]
                     if this_line.split(' # ')[5] != "":
                         attrs = this_line.split(' # ')[5].strip('\"')
@@ -1030,21 +1030,25 @@ class TaskFunctions(object):
 
                     bb = get_ade_bb(level_arrays[int(level)][1], obj_id)
 
-                    # print obj_id, level, bb, image_id, label
+                    # print obj_id, level, bb, image_id, label, wn_lemmas
                     ade_objects.append({'i_corpus': corpus_id,
                                         'image_id': image_id,
                                         'level': level,
                                         'region_id': obj_id,
                                         'bb': bb,
                                         'label': label,
-                                        'synset': wnsyns,
+                                        'lemmas': wn_lemmas,
                                         'attr': attrs,
                                         'occl': occl})
 
+        rel_columns = 'i_corpus image_id region_id region_level part_id part_level'.split()
         relations_df = pd.DataFrame(part_relations)
+        relations_df = relations_df[rel_columns]
         self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
 
+        obj_columns = 'i_corpus image_id region_id level label synset attr occl bb'.split()
         objects_df = pd.DataFrame(ade_objects)
+        objects_df = objects_df[obj_columns]
         self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
 
     # ======= ADE 20K images ========
