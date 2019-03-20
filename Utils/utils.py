@@ -265,13 +265,14 @@ def plot_img_ax(config, ax, corpus, image_id, title=None):
     ax.axis('off')
 
 
-def query_by_id(df, image_id_tuple, third_column='region_id',
-                column=None):
+def query_by_id(df, image_id_tuple, column=None,
+                third_column='region_id'):
     '''
     Query a dataframe, based on an image id tuple.
 
     If the tuple has two elements, they are interpreted as corpus id and
-    image id. If there is one more, this is interpreted as region id.
+    image id. If there is one more, this is interpreted as indicated by
+    the parameter "third_column".
 
     third_column is the name of the third_column that is used besides
     i_corpus and image_id. Default is to use region_id.
