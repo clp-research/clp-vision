@@ -1030,7 +1030,7 @@ class TaskFunctions(object):
 
                     bb = get_ade_bb(level_arrays[int(level)][1], obj_id)
 
-                    #print obj_id, level, bb, image_id, label, wn_lemmas
+                    # print obj_id, level, bb, image_id, label, wn_lemmas
                     ade_objects.append({'i_corpus': corpus_id,
                                         'image_id': image_id,
                                         'level': level,
@@ -1062,7 +1062,6 @@ class TaskFunctions(object):
 
         image_dataframe = []
         for (image_cat, image_id, filename) in image_paths:
-            print image_cat, image_id, filename
             if 'outliers' not in image_cat and 'misc' not in image_cat:
                 if 'training' in image_cat:
                     this_set = 'training'
