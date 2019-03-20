@@ -1041,10 +1041,14 @@ class TaskFunctions(object):
                                         'attr': attrs,
                                         'occl': occl})
 
+        rel_columns = 'i_corpus image_id region_id region_level part_id part_level'.split()
         relations_df = pd.DataFrame(part_relations)
+        relations_df = relations_df[rel_columns]
         self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
 
+        obj_columns = 'i_corpus image_id region_id level label synset attr occl bb'.split()
         objects_df = pd.DataFrame(ade_objects)
+        objects_df = objects_df[obj_columns]
         self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
 
     # ======= ADE 20K images ========
