@@ -22,6 +22,7 @@ import cPickle as pickle
 import logging
 from itertools import chain
 import glob
+import gzip
 
 import numpy as np
 import scipy.io
@@ -349,6 +350,14 @@ class TaskFunctions(object):
     # ======= MSCOCO bounding boxes ========
     #
     def tsk_mscocobb(self):
+        # 2019-03-13: I have removed the restriction to extracting
+        #  only the files that are in refcoco and grex, to get
+        #  all objects. I'm leaving the code commented in here for now,
+        #  as I don't know right now whether this might change anything
+        #  for old downstream functions.
+        #
+        # 2019-03-13: TODO. This should actually run over validation
+        #   as well. See guesswhat.
 
         config = self.config
         args = self.args
@@ -357,23 +366,24 @@ class TaskFunctions(object):
 
         mscoco_path = config.get('MSCOCO', 'mscoco_path')
 
-        with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
-            refcoco_splits = json.load(f)
+        # with open(args.out_dir + '/refcoco_splits.json', 'r') as f:
+        #     refcoco_splits = json.load(f)
 
-        with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
-            grex_splits = json.load(f)
+        # with open(args.out_dir + '/google_refexp_rexsplits.json', 'r') as f:
+        #     grex_splits = json.load(f)
 
-        all_coco_files = list(set(chain(*refcoco_splits.values())).union(set(chain(*grex_splits))))
+        # all_coco_files = list(set(chain(*refcoco_splits.values())).union(set(chain(*grex_splits))))
 
-        all_coco_files = [e for e in all_coco_files if type(e) is int]
+        # all_coco_files = [e for e in all_coco_files if type(e) is int]
 
         with open(mscoco_path, 'r') as f:
             coco_in = json.load(f)
 
         cocoandf = pd.DataFrame(coco_in['annotations'])
-        file_df = pd.DataFrame(all_coco_files, columns=['image_id'])
+        # file_df = pd.DataFrame(all_coco_files, columns=['image_id'])
 
-        cocoandf_reduced = pd.merge(cocoandf, file_df)
+        # cocoandf_reduced = pd.merge(cocoandf, file_df)
+        cocoandf_reduced = cocoandf
 
         bbdf_coco = cocoandf_reduced[['image_id', 'id', 'bbox', 'category_id']]
         bbdf_coco['i_corpus'] = icorpus_code['mscoco']
@@ -382,6 +392,26 @@ class TaskFunctions(object):
         bbdf_coco = bbdf_coco['i_corpus image_id region_id bb cat'.split()]
 
         self._dumpDF(bbdf_coco, args.out_dir + '/mscoco_bbdf.json', args)
+
+    # ======= MSCOCO category list ========
+    #
+    def tsk_mscococats(self):
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... MSCOCO Cats', indent=4)
+
+        mscoco_path = config.get('MSCOCO', 'mscoco_path')
+
+        with open(mscoco_path, 'r') as f:
+            coco_in = json.load(f)
+
+        cococatsdf = pd.DataFrame(coco_in['categories'])
+
+        cococatsdf.columns = 'cat_id cat supercat'.split()
+        cococatsdf.set_index('cat_id', drop=True, inplace=True)
+
+        self._dumpDF(cococatsdf, args.out_dir + '/mscoco_catsdf.json', args)
 
     # ======= MSCOCO region proposal bounding boxes ========
     #
@@ -1050,6 +1080,82 @@ class TaskFunctions(object):
         images_df = images_df['i_corpus image_id image_cat split filename'.split()]
         self._dumpDF(images_df, args.out_dir + '/ade_imgdf.json', args)
 
+    # ======= Guess What? ========
+    #
+    def tsk_guesswhat(self):
+        config = self.config
+
+        corpus_id = icorpus_code['mscoco']
+
+        print_timestamped_message('... Guess What dialogues', indent=4)
+
+        gw_basepath = config.get('GUESSWHAT', 'gw_base')
+
+        out = []
+
+        for split_json_path in glob.glob(gw_basepath + '/*'):
+            this_file = os.path.basename(split_json_path)
+            this_split = this_file.split('.')[1]
+
+            with gzip.open(split_json_path, 'r') as f:
+                for n, this_line in enumerate(f.readlines()):
+                    this_dial = json.loads(this_line)
+                    # corpus_id, image_id, dialogue_id, turn_id, q, a, target, all_obj, success
+                    image_id = this_dial['image']['id']
+                    dialogue_id = n
+                    target_obj = this_dial['object_id']
+                    success = True if this_dial['status'] == 'success' else False
+                    all_objs = [this_obj['id'] for this_obj in this_dial['objects']]
+                    for this_turn in this_dial['qas']:
+                        out.append((corpus_id,
+                                    image_id,
+                                    dialogue_id,
+                                    this_turn['id'],
+                                    this_turn['question'],
+                                    this_turn['answer'],
+                                    target_obj,
+                                    all_objs,
+                                    success,
+                                    this_split))
+
+        gw_df = pd.DataFrame(out,
+                             columns='corpus_id image_id dial_id turn_id q a target all_objs success split'.split())
+        self._dumpDF(gw_df, args.out_dir + '/gw_df.json', args)
+
+    # ======= Guess What? ========
+    #
+    def tsk_visdial(self):
+        config = self.config
+
+        corpus_id = icorpus_code['mscoco']
+
+        print_timestamped_message('... VisDial dialogues', indent=4)
+
+        vd_basepath = config.get('VISDIAL', 'vd_base')
+
+        out = []
+
+        for split_json_path in glob.glob(vd_basepath + '/*'):
+            with gzip.open(split_json_path, 'r') as f:
+                dataset = json.load(f)
+                split = dataset['split']
+
+                for n, this_dial in enumerate(dataset['data']['dialogs']):
+                    image_id = this_dial['image_id']
+                    dial_id = n
+                    trigger_caption = this_dial['caption']
+                    for m, this_turn in enumerate(this_dial['dialog']):
+                        question = dataset['data']['questions'][this_turn['question']]
+                        answer = dataset['data']['answers'][this_turn['answer']]
+                        turn_id = m
+
+                        out.append((corpus_id, image_id, dial_id, turn_id,
+                                    question, answer, trigger_caption, split))
+        vd_df = pd.DataFrame(out,
+                             columns='corpus_id image_id dial_id turn_id question answer trigger_caption split'.split())
+
+        self._dumpDF(vd_df, args.out_dir + '/vd_df.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -1077,13 +1183,14 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
-                                 'mscococap',
+                                 'mscococap', 'mscococats',
                                  'grexbb', 'visgenimg', 'visgenreg',
                                  'visgenrel', 'visgenobj', 'visgenatt',
                                  'visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'aderel', 'adeimgs',
+                                 'guesswhat', 'visdial',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
