@@ -1159,6 +1159,45 @@ class TaskFunctions(object):
 
         self._dumpDF(vd_df, args.out_dir + '/vd_df.json', args)
 
+    # ======= VQA ========
+    #
+    def tsk_vqa(self):
+        config = self.config
+        vqa_basepath = config.get('VQA', 'vqa_base')
+
+        corpus_id = icorpus_code['mscoco']
+
+        print_timestamped_message('... vqa', indent=4)
+
+        out = []
+
+        for split in ['train', 'val']:
+            anno_path = 'v2_mscoco_{}2014_annotations.json'.format(split)
+            ques_path = 'v2_OpenEnded_mscoco_{}2014_questions.json'.format(split)
+            with open(vqa_basepath + '/' + anno_path, 'r') as f:
+                annos = json.load(f)
+            with open(vqa_basepath + '/' + ques_path, 'r') as f:
+                qs = json.load(f)
+
+            qs = {q['question_id']: (q['image_id'], q['question'])
+                  for q in qs['questions']}
+
+            for answer in annos['annotations']:
+                qii, q = qs[answer['question_id']]
+                assert answer['image_id'] == qii, 'dataset inconsistent!'
+                out.append((
+                    corpus_id,
+                    answer['image_id'],
+                    answer['question_id'],
+                    q,
+                    answer['multiple_choice_answer'],
+                    answer['question_type'],
+                    split
+                ))
+
+        vqa_df = pd.DataFrame(out, columns='i_corpus image_id q_id q a q_type split'.split())
+        self._dumpDF(vqa_df, args.out_dir + '/vqa.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -1193,7 +1232,7 @@ if __name__ == '__main__':
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'aderel', 'adeimgs',
-                                 'guesswhat', 'visdial',
+                                 'guesswhat', 'visdial', 'vqa',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
