@@ -1125,7 +1125,7 @@ class TaskFunctions(object):
                              columns='corpus_id image_id dial_id turn_id q a target all_objs success split'.split())
         self._dumpDF(gw_df, args.out_dir + '/gw_df.json', args)
 
-    # ======= Guess What? ========
+    # ======= VisDial ========
     #
     def tsk_visdial(self):
         config = self.config
