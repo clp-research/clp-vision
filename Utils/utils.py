@@ -164,7 +164,7 @@ def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
 
 def plot_labelled_bb(impath, bblist, title=None, text_size='large',
                      mode='path', omode='screen', opath=None,
-                     figsize=(10, 20), show_image=True):
+                     figsize=(10, 20), show_image=True, ax=None):
     '''Given the path of an image and a list containing tuples
     of bounding box (a list of x,y,w,h) and label info,
     plot these boxes and labels into the image.
@@ -181,7 +181,11 @@ def plot_labelled_bb(impath, bblist, title=None, text_size='large',
     elif mode == 'img':
         img = impath
 
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = plt.gcf()
+
     fig.set_size_inches(figsize)
 
     if not show_image:
