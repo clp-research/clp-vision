@@ -1,13 +1,12 @@
 import numpy as np
 import scipy.io
 import re
-import matplotlib.pyplot as plt
 
 
 def id_mask(image):
     ''' translates the array of a segmentation file
        into a mask with the actual object ids'''
-    array = image[:,:,2]
+    array = image[:, :, 2]
     d = {idx: num for num, idx in enumerate(np.unique(array))}
     return np.vectorize(d.__getitem__)(array)
 
@@ -46,7 +45,7 @@ def get_ade_mask_parts(impath, img_cat, image_name, level):
 
 
 def get_ade_bb(seg, region_id):
-    B = seg[:,:,2]
+    B = seg[:, :, 2]
     i = int(region_id)
     mask = (B == ((np.unique(B))[i]))*1
     x1, y1 = np.nonzero(mask)[1].min(), np.nonzero(mask)[0].min()
