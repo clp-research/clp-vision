@@ -41,6 +41,7 @@ from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
 from ade_helpers import id_mask, ade_path_data, ade_annotation, get_ade_bb
+from cocoent_helpers import serialise_cococap
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -1198,6 +1199,45 @@ class TaskFunctions(object):
         vqa_df = pd.DataFrame(out, columns='i_corpus image_id q_id q a q_type split'.split())
         self._dumpDF(vqa_df, args.out_dir + '/vqa.json', args)
 
+    # ======= COCO Entities ========
+    #
+    def tsk_cocoent(self):
+        config = self.config
+        cocoent_path = config.get('COCOENT', 'cocoent')
+
+        corpus_id = icorpus_code['mscoco']
+
+        print_timestamped_message('... coco entities', indent=4)
+
+        with open(cocoent_path, 'r') as f:
+            ce = json.load(f)
+
+        cap_df = []
+        obj_df = []
+        for this_image, this_image_dict in tqdm(ce.items()):
+            detections = {}
+            for this_cap, this_anno in this_image_dict.items():
+                detections.update(this_anno['detections'])
+                cap_df.append((corpus_id, this_image,
+                               this_anno['split'],
+                               this_cap,
+                               serialise_cococap(this_cap, this_anno)))
+            for ent_type, bbs in detections.items():
+                for rid, bb in bbs:
+                    bx, by = bb[0], bb[1]
+                    bw, bh = bb[2] - bx, bb[3] - by
+                    obj_df.append((corpus_id,
+                                   this_image,
+                                   rid,
+                                   this_anno['split'],
+                                   [bx, by, bw, bh],
+                                   ent_type))
+
+        cap_df = pd.DataFrame(cap_df, columns='i_corpus image_id split cap cap_ent'.split())
+        obj_df = pd.DataFrame(obj_df, columns='i_corpus image_id region_id split bb type'.split())
+        self._dumpDF(cap_df, args.out_dir + '/cocoent_capdf.json', args)
+        self._dumpDF(obj_df, args.out_dir + '/cocoent_objdf.json', args)
+
 
 # ======== MAIN =========
 if __name__ == '__main__':
@@ -1232,7 +1272,7 @@ if __name__ == '__main__':
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'aderel', 'adeimgs',
-                                 'guesswhat', 'visdial', 'vqa',
+                                 'guesswhat', 'visdial', 'vqa', 'cocoent',
                                  'all'],
                         help='''
                         task(s) to do. Choose one or more.
