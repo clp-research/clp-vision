@@ -15,9 +15,8 @@ TODO:
 from __future__ import division
 
 import sys
-import ConfigParser
+import configparser
 import argparse
-import codecs
 from collections import Counter, defaultdict
 from os.path import isfile
 
@@ -29,7 +28,7 @@ import pandas as pd
 import numpy as np
 
 sys.path.append('../Utils')
-from utils import print_timestamped_message, code_icorpus
+from utils import print_timestamped_message
 
 MAX_ROWS_OBJ = 30000  # max images to compare. beyond it gets too slow.
 MAX_ROWS_IMG = 10000  # max n to compare based on img features
@@ -106,7 +105,7 @@ def run_objects_sim(bbdf_dir, this_corp):
 
         outfilename = bbdf_dir + '/mscoco_sim'
         if isfile(outfilename + '.npz'):
-            print '%s exists. Will not overwrite. ABORTING.' % (outfilename + '.npz')
+            print('%s exists. Will not overwrite. ABORTING.' % (outfilename + '.npz'))
             return
 
         print_timestamped_message('... loading up bbdf')
@@ -124,7 +123,7 @@ def run_objects_sim(bbdf_dir, this_corp):
 
         outfilename = bbdf_dir + '/visgen_sim'
         if isfile(outfilename + '.npz'):
-            print '%s exists. Will not overwrite. ABORTING.' % (outfilename + '.npz')
+            print('%s exists. Will not overwrite. ABORTING.' % (outfilename + '.npz'))
             return
 
         print_timestamped_message('... loading up bbdf')
@@ -152,7 +151,7 @@ def run_visual_sim(imfeat_dir, bbdf_dir, this_corp, n_most=200):
         outfilename = bbdf_dir + '/mscoco_vis_sim'
 
     if isfile(outfilename + '.npz'):
-        print '%s exists. Will not overwrite. ABORTING.' % (outfilename + '.npz')
+        print('%s exists. Will not overwrite. ABORTING.' % (outfilename + '.npz'))
         return
 
     print_timestamped_message('Loading up X')
@@ -199,13 +198,13 @@ if __name__ == '__main__':
                         Which corpus / corpora to run this on.''')
     args = parser.parse_args()
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.ConfigParser()
 
     try:
-        with codecs.open(args.config_file, 'r', encoding='utf-8') as f:
-            config.readfp(f)
+        with open(args.config_file, 'r', encoding='utf-8') as f:
+            config.read_file(f)
     except IOError:
-        print 'no config file found at %s' % (args.config_file)
+        print('no config file found at %s' % (args.config_file))
         sys.exit(1)
 
     if args.bbdf_dir:

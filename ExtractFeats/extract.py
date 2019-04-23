@@ -8,9 +8,8 @@ from __future__ import division
 
 # import json
 import argparse
-import codecs
 import sys
-import ConfigParser
+import configparser
 from os.path import isfile
 
 import pandas as pd
@@ -69,7 +68,7 @@ def compute_feats(config, bbdf, model, preproc,
     if full_image:
         filename += '-fi'
     if isfile(filename + '.npz'):
-        print '%s exists. Will not overwrite. ABORTING.' % (filename + '.npz')
+        print('%s exists. Will not overwrite. ABORTING.' % (filename + '.npz'))
         return
 
     X_pos = []
@@ -122,8 +121,8 @@ def compute_feats(config, bbdf, model, preproc,
             this_bb_mod = this_bb
 
         if this_bb_mod and np.min(this_bb_mod[2:]) <= 0:
-            print 'skipping over this image (%s,%d). Negative bb! %s' % \
-                (code_icorpus[this_icorpus], this_image_id, str(this_bb_mod))
+            print('skipping over this image (%s,%d). Negative bb! %s' % \
+                (code_icorpus[this_icorpus], this_image_id, str(this_bb_mod)))
             continue
 
         (prev_iid, prev_img), img_resized = \
@@ -133,8 +132,8 @@ def compute_feats(config, bbdf, model, preproc,
 
         if len(prev_img.shape) != 3 or \
            (len(prev_img.shape) == 3 and prev_img.shape[2] != 3):
-            print 'skipping over this image (%s,%d). b/w?' % \
-                (code_icorpus[this_icorpus], this_image_id)
+            print('skipping over this image (%s,%d). b/w?' % \
+                (code_icorpus[this_icorpus], this_image_id))
             continue
 
         # If we continue below this line, getting region worked
@@ -153,7 +152,7 @@ def compute_feats(config, bbdf, model, preproc,
                 # print X_i.shape
                 X = model.predict(preproc(X_i.astype('float64')))
             except ValueError:
-                print 'Exception! But why? Skipping this whole batch..'
+                print('Exception! But why? Skipping this whole batch..')
                 X_i = []
                 ids = []
                 X_pos = []
@@ -162,7 +161,7 @@ def compute_feats(config, bbdf, model, preproc,
 
             X_ids = np.array(ids)
             X_pos = np.array(X_pos)
-            print X_ids.shape, X.shape, X_pos.shape
+            print(X_ids.shape, X.shape, X_pos.shape)
             if full_image:
                 X_out.append(np.hstack([X_ids, X]))
             else:
@@ -176,7 +175,7 @@ def compute_feats(config, bbdf, model, preproc,
     X_out = np.concatenate(X_out, axis=0)
 
     print_timestamped_message('Made it through! Writing out..', indent=4)
-    print X_out.shape
+    print(X_out.shape)
 
     np.savez_compressed(filename, X_out)
 
@@ -217,13 +216,13 @@ if __name__ == '__main__':
                         Which bddf(s) to run this on.''')
     args = parser.parse_args()
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.ConfigParser()
 
     try:
-        with codecs.open(args.config_file, 'r', encoding='utf-8') as f:
-            config.readfp(f)
+        with open(args.config_file, 'r', encoding='utf-8') as f:
+            config.read_file(f)
     except IOError:
-        print 'no config file found at %s' % (args.config_file)
+        print('no config file found at %s' % (args.config_file))
         sys.exit(1)
 
     if args.bbdf_dir:
@@ -243,17 +242,17 @@ if __name__ == '__main__':
     config.add_section('runtime')
     config.set('runtime', 'out_dir', out_dir)
 
-    print bbdf_dir, out_dir
+    print(bbdf_dir, out_dir)
 
     config.set('runtime', 'full_image', str(args.full_image))
     if args.full_image == 'True':
-        print "Full Image Mode Selected! Extraction will take whole image as input."
+        print("Full Image Mode Selected! Extraction will take whole image as input.")
 
     # default dimensions
     xs, ys = 224, 224
 
     arch, layer = args.model.split('-')
-    print args.bbdf, arch, layer
+    print(args.bbdf, arch, layer)
     config.set('runtime', 'model', args.model)
 
     if arch == 'vgg19':
@@ -283,11 +282,11 @@ if __name__ == '__main__':
         else:
             this_bbdf_path = this_bbdf_base
             if not isfile(this_bbdf_base):
-                print "bbdf file (%s) not found. Aborting." % (this_bbdf_path)
+                print("bbdf file (%s) not found. Aborting." % (this_bbdf_path))
                 sys.exit(1)
             bbdf = pd.read_json(this_bbdf_base,
                                 orient='split')
-        print this_bbdf_path
+        print(this_bbdf_path)
 
         config.set('runtime', 'this_bbdf', this_bbdf)
 

@@ -1,9 +1,9 @@
 # coding: utf-8
 from __future__ import division
 import os
-import scipy.io
-import numpy as np
 import datetime
+import scipy.io as spio
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 from PIL import Image as PImage
@@ -32,7 +32,7 @@ code_icorpus = invert_dict(icorpus_code)
 
 def print_timestamped_message(message, indent=0):
     now = datetime.datetime.now().strftime('%Y-%m-%d @ %H:%M:%S')
-    print ' ' * indent, '[ %s ] %s' % (now, message)
+    print(' ' * indent, '[ %s ] %s' % (now, message))
 
 
 def saiapr_basepath(image_id):
@@ -65,7 +65,7 @@ def get_saiapr_bb(config, image_id, region_id):
     '''get the bounding box of an SAIAPR region, given image and region IDs'''
     mask_path = saiapr_mask_filename(config, image_id, region_id)
     # print mask_path
-    mask = scipy.io.loadmat(mask_path)
+    mask = spio.loadmat(mask_path)
     mask = mask['segimg_t']
     mask = mask + 1
     x1, y1 = np.nonzero(mask)[1].min(), np.nonzero(mask)[0].min()
@@ -134,10 +134,10 @@ def get_image_filename(config, icorp, image_id):
         return ade_filename(config, image_id)
     raise ValueError('Unknown corpus code')
 
-
-def get_image_part(config, (prev_image_id, img), i_corpus, image_id, bb,
+def get_image_part(config, img_tuple, i_corpus, image_id, bb,
                    resize=True,
                    xs=224, ys=224):
+    prev_image_id, img = img_tuple
     if prev_image_id != image_id:
         this_path = get_image_filename(config, i_corpus, image_id)
         img = plt.imread(this_path)
