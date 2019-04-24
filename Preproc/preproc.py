@@ -13,24 +13,22 @@ from __future__ import division
 from operator import itemgetter
 import argparse
 import re
-import ConfigParser
-import codecs
+import configparser
 import xml.etree.ElementTree as ET
 import json
 from ijson import items
-import cPickle as pickle
+import pickle
 import logging
 from itertools import chain
 import glob
 import gzip
 
 import numpy as np
-import scipy.io
+import scipy.io as spio
 import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
 import os
-import glob
 
 from tqdm import tqdm
 
@@ -41,7 +39,7 @@ from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
 from ade_helpers import id_mask, ade_path_data, ade_annotation, get_ade_bb
-from cocoent_helpers import serialise_cococap
+#from Preproc.Helpers.cocoent_helpers import serialise_cococap
 
 N_VISGEN_IMG = 108077
 #  The number of images in the visgen set, for the progress bar
@@ -78,7 +76,7 @@ class TaskFunctions(object):
     def exec_task(self, task):
         fn = getattr(self, 'tsk_' + task, None)
         if fn is None:
-            print '%s is an unkown task' % task
+            print('%s is an unkown task' % task)
             sys.exit(1)
         else:
             fn()
@@ -87,12 +85,12 @@ class TaskFunctions(object):
     @staticmethod
     def _dumpDF(refdf, path_base, args):
         if args.nocompression:
-            print 'writing to disk: ', path_base
+            print('writing to disk: ', path_base)
             refdf.to_json(path_base,
                           force_ascii=False, orient='split')
         else:
             refdf_path = path_base + '.gz'
-            print 'writing to disk: ', refdf_path
+            print('writing to disk: ', refdf_path)
             refdf.to_json(refdf_path,
                           compression='gzip',
                           force_ascii=False, orient='split')
@@ -312,7 +310,7 @@ class TaskFunctions(object):
 
         print_timestamped_message('... SAIAPR Bounding Boxes', indent=4)
 
-        featmat = scipy.io.loadmat(config.get('SAIAPR', 'saiapr_featmat'))
+        featmat = spio.loadmat(config.get('SAIAPR', 'saiapr_featmat'))
         X = featmat['X']
 
         # get all the bounding boxes for SAIAPR regions
@@ -1281,15 +1279,15 @@ if __name__ == '__main__':
     targs = parser.parse_known_args()
     args, unparsed_args = targs
 
-    print "treated as task-specific parameters: ", unparsed_args
+    print("treated as task-specific parameters: ", unparsed_args)
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.ConfigParser()
 
     try:
-        with codecs.open(args.config_file, 'r', encoding='utf-8') as f:
-            config.readfp(f)
+        with open(args.config_file, 'r', encoding='utf-8') as f:
+            config.read_file(f)
     except IOError:
-        print 'no config file found at %s' % (args.config_file)
+        print('no config file found at %s' % (args.config_file))
         sys.exit(1)
 
     tfs = TaskFunctions(targs, config)
@@ -1300,7 +1298,7 @@ if __name__ == '__main__':
         available_tasks = [this_method.replace('tsk_', '')
                            for this_method in dir(tfs)
                            if this_method.startswith('tsk_')]
-        print 'I will run all of:', available_tasks
+        print('I will run all of:', available_tasks)
         args.task = available_tasks
 
     print_timestamped_message('starting to preprocess...')

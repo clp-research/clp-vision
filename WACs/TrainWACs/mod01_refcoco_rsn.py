@@ -7,8 +7,7 @@ setting.
 from __future__ import division
 import sys
 import argparse
-import ConfigParser
-import codecs
+import configparser
 import json
 import os
 from os.path import isfile
@@ -38,7 +37,7 @@ def main(config):
 
     outfile_base = config.get('runtime', 'out_dir') + '/' + basename
     if isfile(outfile_base + '.npz'):
-        print '%s exists. Will not overwrite. ABORTING.' % (outfile_base + '.npz')
+        print('%s exists. Will not overwrite. ABORTING.' % (outfile_base + '.npz'))
         return
 
     # Model description:
@@ -102,7 +101,7 @@ def main(config):
                                              classifier, classf_params,
                                              this_word)
                     for this_word in wordlist)
-    print ''  # newline, because train_this_word prints . as progress bar
+    print('')  # newline, because train_this_word prints . as progress bar
 
     # ======================= SAVE ==============================
     print_timestamped_message('writing to disk',
@@ -135,13 +134,13 @@ if __name__ == '__main__':
                         default: './ModelsOut' ''')
     args = parser.parse_args()
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.ConfigParser()
 
     try:
-        with codecs.open(args.config_file, 'r', encoding='utf-8') as f:
-            config.readfp(f)
+        with open(args.config_file, 'r', encoding='utf-8') as f:
+            config.read_file(f)
     except IOError:
-        print 'no config file found at %s' % (args.config_file)
+        print('no config file found at %s' % (args.config_file))
         sys.exit(1)
 
     if args.out_dir:

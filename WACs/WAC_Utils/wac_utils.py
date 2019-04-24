@@ -5,11 +5,11 @@ by the scripts that define the models.
 '''
 
 from __future__ import division
+import sys
+from collections import defaultdict
 import pandas as pd
 import numpy as np
-from collections import defaultdict
 from sklearn.utils import shuffle
-import sys
 
 # The first features in the image feature Xs encode the region ID
 ID_FEATS = 3
@@ -109,7 +109,7 @@ def get_X_for_word(X, word2den, mask_matrix, word, neg_max=20000):
     '''
     if word not in word2den:
         # raise ValueError("No mask available for this word! (%s)" % (word))
-        print "Error!! No mask available for this word! (%s)" % (word)
+        print("Error!! No mask available for this word! (%s)" % (word))
         return None
     this_mask = mask_matrix[word2den.keys().index(word)]
     X_pos = X[this_mask, ID_FEATS:]
@@ -137,7 +137,7 @@ def train_this_word(X, word2den, mask_matrix, neg_max,
                                         mask_matrix, this_word,
                                         neg_max=neg_max)
     # print this_word, X_this_w.shape[0]
-    print '.',
+    print('.')
     sys.stdout.flush()
     classifier = classifier(**classf_params)
     this_wac = classifier.fit(X_this_w, y_this_w)

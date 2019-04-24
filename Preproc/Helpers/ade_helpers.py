@@ -1,7 +1,6 @@
-import numpy as np
-import scipy.io
 import re
-
+import numpy as np
+import scipy.io as spio
 
 def id_mask(image):
     ''' translates the array of a segmentation file
@@ -14,7 +13,7 @@ def id_mask(image):
 def ade_path_data(matpath):
     """given the path to the index_ade20k.mat annoation file,
        returns (path, image id, filename) of all images"""
-    ade_anns = scipy.io.loadmat(matpath)['index'][0][0]
+    ade_anns = spio.loadmat(matpath)['index'][0][0]
     filenames = np.squeeze(ade_anns[1])
     pathnames = np.squeeze(ade_anns[0])
     image_no = len(filenames)
