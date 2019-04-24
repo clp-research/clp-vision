@@ -45,7 +45,10 @@ def load_imsim(path):
     image the n most similar other images.
     Mapping maps the row index to an image ID.
     '''
-    npl = np.load(path)
+    # 2019-04-24: this bizarro encoding latin1 thing is a bizarro
+    #  fix for a bizarro bug when unpickling py2 pickles in py3.
+    #  Argh.
+    npl = np.load(path, encoding='latin1')
     return npl['arr_0'], dict(npl['arr_1'].tolist())
 
 
