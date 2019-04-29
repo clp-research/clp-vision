@@ -23,6 +23,8 @@ from itertools import chain
 import glob
 import gzip
 
+from bs4 import BeautifulSoup
+from io import open
 import numpy as np
 import scipy.io as spio
 import matplotlib.pyplot as plt
@@ -39,6 +41,7 @@ from utils import print_timestamped_message
 sys.path.append('Helpers')
 from visgen_helpers import serialise_region_descr, empty_to_none
 from ade_helpers import id_mask, ade_path_data, ade_annotation, get_ade_bb
+from coco_helpers import *
 #from Preproc.Helpers.cocoent_helpers import serialise_cococap
 
 N_VISGEN_IMG = 108077
@@ -472,6 +475,76 @@ class TaskFunctions(object):
         cococap_df['i_corpus'] = icorpus_code['mscoco']
 
         self._dumpDF(cococap_df, args.out_dir + '/cococapdf.json', args)
+
+
+    # ======= Groundnet Supporting Annotations ========
+    #
+    def tsk_groundnet(self):
+
+        config = self.config
+        args = self.args
+
+        print_timestamped_message('... Groundnet Supporting Annotations', indent=4)
+
+        root = config.get('GROUNDNET', 'groundnet_supp')
+        html_root = config.get('GROUNDNET', 'groundnet_html')
+
+        with open(args.out_dir + '/groundnet_test.json', 'r') as f:
+            test_data = json.load(f)
+        test_df = pd.DataFrame(test_data)
+
+        coco_bbdf = pd.read_json(args.out_dir + '/mscoco_bbdf.json.gz',
+                                    typ='frame', orient='split',
+                                    compression='gzip')
+
+        new_rows = []
+        ann_files = glob.glob(root + '*.ann.txt')
+        i_corpus = 1
+
+        for path in ann_files:
+            ix = re.search(r'/([\d]+).ann.txt', path).group(1)
+            with open(path, 'r') as f:
+                ann = [line.strip() for line in f][0]
+            w2box = getAnnDict(ann)
+            if len([w for w in w2box if w2box[w] != 'b-1']) >= 1:
+                with open(html_root + ix + '.html') as f:
+                    soup = BeautifulSoup(f, features="html.parser")
+
+                image_path = str(soup.img['src'])
+                image_id = int(re.search('.*train2014_([\d]+)', image_path).group(1))
+                refexp = str(soup.p.contents[0]).strip("\"")
+                box_set = set([int(w2box[w][1:]) for w in w2box if w2box[w] != 'b-1'])
+                this_row = test_df.iloc[int(ix)]
+                region_id = this_row[0]
+                boxes = [["{:.2f}".format(n) for n in box] for box in this_row[1]]
+                this_df = coco_bbdf[coco_bbdf.image_id == image_id]
+
+                index2regid = {}
+                for n, row in this_df.iterrows():
+		     gn_idx = boxes.index(["{:.2f}".format(coord) for coord in row[3]])
+                     index2regid['b'+str(gn_idx)] = row[2]
+
+                w2regid = {}
+                for pos, box in w2box.items():
+                    if box != 'b-1':
+                        w2regid[pos] = index2regid[box]
+
+                refexp_inline = refexp.split()
+                for pos in w2regid.keys():
+                     slice = [ix for ix in pos.split('_') if ix != '']
+                     if len(slice) > 0:
+                         end_pos = slice[-1]
+                         start_pos = slice[0]
+                         refexp_inline[int(start_pos)] = '['+refexp_inline[int(start_pos)]
+                         refexp_inline[int(end_pos)] = refexp_inline[int(end_pos)]+']#'+str(w2regid[pos])
+                refexp_inline = " ".join(refexp_inline)
+                new_rows.append((i_corpus, image_id, region_id, refexp, refexp_inline))
+
+        column_order = 'i_corpus image_id region_id refexp refexp_inline'.split()
+        ground_refdf = pd.DataFrame(new_rows, columns=column_order)
+
+        self._dumpDF(ground_refdf, args.out_dir + '/ground_refdf.json', args)
+
 
     # ======= Visual Genome Region Descriptions ========
     #
@@ -1264,9 +1337,9 @@ if __name__ == '__main__':
                         choices=['saiapr', 'refcoco', 'refcocoplus',
                                  'grex', 'saiaprbb', 'mscocobb',
                                  'mscococap', 'mscococats',
-                                 'grexbb', 'visgenimg', 'visgenreg',
-                                 'visgenrel', 'visgenobj', 'visgenatt',
-                                 'visgenvqa', 'visgenpar',
+                                 'grexbb', 'groundnet',
+                                 'visgenimg', 'visgenreg', 'visgenrel',
+                                 'visgenobj', 'visgenatt','visgenvqa', 'visgenpar',
                                  'flickrbb', 'flickrcap', 'flickrobj',
                                  'birdbb', 'birdattr', 'birdparts', 'birdcap',
                                  'aderel', 'adeimgs',
