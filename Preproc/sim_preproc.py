@@ -48,7 +48,7 @@ def load_imsim(path):
     # 2019-04-24: this bizarro encoding latin1 thing is a bizarro
     #  fix for a bizarro bug when unpickling py2 pickles in py3.
     #  Argh.
-    npl = np.load(path, encoding='latin1')
+    npl = np.load(path, allow_pickle=True, encoding='latin1')
     return npl['arr_0'], dict(npl['arr_1'].tolist())
 
 
