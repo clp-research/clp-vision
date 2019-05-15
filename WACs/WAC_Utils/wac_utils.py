@@ -111,7 +111,7 @@ def get_X_for_word(X, word2den, mask_matrix, word, neg_max=20000):
         # raise ValueError("No mask available for this word! (%s)" % (word))
         print("Error!! No mask available for this word! (%s)" % (word))
         return None
-    this_mask = mask_matrix[word2den.keys().index(word)]
+    this_mask = mask_matrix[list(word2den.keys()).index(word)]
     X_pos = X[this_mask, ID_FEATS:]
     y_pos = np.ones(len(X_pos), dtype=int)
 
@@ -137,7 +137,7 @@ def train_this_word(X, word2den, mask_matrix, neg_max,
                                         mask_matrix, this_word,
                                         neg_max=neg_max)
     # print this_word, X_this_w.shape[0]
-    print('.')
+    print('.', end='')
     sys.stdout.flush()
     classifier = classifier(**classf_params)
     this_wac = classifier.fit(X_this_w, y_this_w)

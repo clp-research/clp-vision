@@ -89,7 +89,7 @@ def main(config):
                               indent=4)
     min_freq = model['wprm']
     counts = mask_matrix.sum(axis=1)
-    wordlist = np.array(word2den.keys())[counts > min_freq]
+    wordlist = np.array(list(word2den.keys()))[counts > min_freq]
 
     # ======================= TRAIN ==============================
     print_timestamped_message('and training the %d WACs!' % (len(wordlist)),
