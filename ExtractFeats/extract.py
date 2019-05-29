@@ -85,7 +85,7 @@ def compute_feats(config, bbdf, model, preproc,
 
     if 'region_id' in bbdf.columns:  # default
         reg_col = 'region_id'
-    if 'object_id' in bbdf.columns:  # some visgen bbdfs
+    if 'obj_id' in bbdf.columns:  # some visgen bbdfs
         reg_col = 'obj_id'
     if 'subregion_id' in bbdf.columns:  # Flickr30k
         subreg = True
