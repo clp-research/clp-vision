@@ -154,9 +154,13 @@ def get_image_part(config, img_tuple, i_corpus, image_id, bb,
         img_cropped = img[int(y):int(y+h), int(x):int(x+w)]
 
     if resize:
-        pim = PImage.fromarray(img_cropped)
-        pim2 = pim.resize((xs, ys), PImage.ANTIALIAS)
-        img_resized = np.array(pim2)
+        try:
+            pim = PImage.fromarray(img_cropped)
+            pim2 = pim.resize((xs, ys), PImage.ANTIALIAS)
+            img_resized = np.array(pim2)
+        except (ValueError, SystemError):
+            print('Failed to resize, use cropped image instead..')
+            img_resized = img_cropped
     else:
         img_resized = img_cropped
     return ((image_id, img), img_resized)
