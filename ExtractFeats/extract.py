@@ -14,6 +14,8 @@ from os.path import isfile
 
 import pandas as pd
 import numpy as np
+import dask.array as da
+import h5py
 
 from tqdm import tqdm
 
@@ -78,6 +80,15 @@ def compute_feats(config, bbdf, model, preproc,
     prev_iid, prev_img = (None, None)
 
     X_out = []
+    write_flag = False
+    write_count = 1
+    minibatch_size = 100000
+    checkpts = minibatch_size
+
+    if len(bbdf) > 1000000:
+        size_flag = True
+    else:
+        size_flag = False
 
     if full_image:
         bbdf = bbdf.drop_duplicates(subset='image_id')
@@ -163,21 +174,40 @@ def compute_feats(config, bbdf, model, preproc,
             X_pos = np.array(X_pos)
             print(X_ids.shape, X.shape, X_pos.shape)
             if full_image:
-                X_out.append(np.hstack([X_ids, X]))
+                X_out_buff = da.from_array(np.hstack([X_ids, X]), chunks=(1000, 1000))
+                X_out.append(X_out_buff)
             else:
-                X_out.append(np.hstack([X_ids, X, X_pos]))
+                X_out_buff = da.from_array(np.hstack([X_ids, X, X_pos]), chunks=(1000, 1000))
+                X_out.append(X_out_buff)
 
             ids = []
             X_pos = []
             X_i = []
             file_counter += 1
+    
+        # testing out mini-batch extractions
+        if n >= checkpts or n+1 == len(bbdf):
+            write_flag = True
+            checkpts += minibatch_size
+
+        if write_flag and size_flag:
+            write_flag = False
+            write_buffer = da.concatenate(X_out, axis = 0)
+            #np.savez_compressed(filename + "_" + str(write_count), write_buffer)
+            da.to_hdf5(filename +"_" + str(write_count) + ".hdf5", filename, write_buffer, \
+                      compression="gzip", compression_opts=9, shuffle=True, chunks=True)
+            write_count += 1
+            X_out = []
     # and back to the for loop
-    X_out = np.concatenate(X_out, axis=0)
+    if not size_flag:
+        X_out = da.concatenate(X_out, axis=0)
 
-    print_timestamped_message('Made it through! Writing out..', indent=4)
-    print(X_out.shape)
+        print_timestamped_message('Made it through! Writing out..', indent=4)
+        print(X_out.shape)
 
-    np.savez_compressed(filename, X_out)
+       # np.savez_compressed(filename, X_out)
+        da.to_hdf5(filename + ".hdf5", filename, X_out, \
+                  compression="gzip", compression_opts=9, shuffle=True, chunks=True)
 
 
 # ======== MAIN =========
