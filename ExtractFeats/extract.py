@@ -85,7 +85,7 @@ def compute_feats(config, bbdf, model, preproc,
     minibatch_size = 100000
     checkpts = minibatch_size
 
-    if len(bbdf) > 1000000:
+    if len(bbdf) > 200000:
         size_flag = True
     else:
         size_flag = False
