@@ -28,6 +28,11 @@ from utils import join_imagenet_id
 backend.set_image_data_format('channels_last')
 
 
+class FakeModel(object):
+    def predict(self, X, n_feats=4096):
+        return np.random.rand(X.shape[0], n_feats)
+
+
 def compute_posfeats(img, bb):
     n_pos_feats = 7
     if bb is None:
@@ -57,12 +62,12 @@ def compute_posfeats(img, bb):
     return np.array([x1r, y1r, x2r, y2r, area, ratio, distance])
 
 
-def compute_feats(config, bbdf, model, preproc,
+def compute_feats(config, args, bbdf, model, preproc,
                   xs=224, ys=224, batch_size=100):
 
-    full_image = True if config.get('runtime', 'full_image') == 'True' else False
+    full_image = args.full_image
 
-    filename = config.get('runtime', 'out_dir') +\
+    filename = config.get('runtime', 'out_dir') + \
         '/%s_%s' % (
             config.get('runtime', 'this_bbdf'),
             config.get('runtime', 'model'))
@@ -81,10 +86,16 @@ def compute_feats(config, bbdf, model, preproc,
     X_out = []
     write_flag = False
     write_count = 1
-    minibatch_size = 100000
+    minibatch_size = args.write_batch
     checkpts = minibatch_size
+    
+    # FIXME, for debugging only! Reduced size or starting with offset
+    # bbdf = bbdf[:100]
+    if args.bbdf_slice:
+        s, e = [int(e) for e in args.bbdf_slice.split(':')]
+        bbdf = bbdf[s:e]
 
-    if len(bbdf) > 200000:
+    if len(bbdf) > args.max_singlefile:
         size_flag = True
     else:
         size_flag = False
@@ -93,8 +104,8 @@ def compute_feats(config, bbdf, model, preproc,
         bbdf = bbdf.drop_duplicates(subset='image_id')
         bbdf = bbdf.reset_index()
 
-    if 'region_id' in bbdf.columns:  # default
-        reg_col = 'region_id'
+    # if 'region_id' in bbdf.columns:  # default
+    reg_col = 'region_id'
     if 'obj_id' in bbdf.columns:  # some visgen bbdfs
         reg_col = 'obj_id'
     if 'subregion_id' in bbdf.columns:  # Flickr30k
@@ -102,20 +113,19 @@ def compute_feats(config, bbdf, model, preproc,
     else:
         subreg = False
 
-    # FIXME, for debugging only! Reduced size or starting with offset
-    # bbdf = bbdf[:100]
-
     for n, row in tqdm(bbdf.iterrows(), total=len(bbdf)):
         this_icorpus = row['i_corpus']
         this_image_id = row['image_id']
-        this_region_id = row[reg_col]
-        if subreg:  # this means that we are reading in Flickr30k...
-            this_region_id = row[reg_col] + row['subregion_id'] / 100
-        this_bb = row['bb']
 
         if full_image:
             this_bb = None
             this_region_id = 0
+        else:
+            this_bb = row['bb']
+            this_region_id = row[reg_col]
+
+        if subreg:  # this means that we are reading in Flickr30k...
+            this_region_id = row[reg_col] + row['subregion_id'] / 100
 
         #  When extracting feats for imagenet regions, must
         #  - create combined filename out of image_id and region_id
@@ -126,6 +136,16 @@ def compute_feats(config, bbdf, model, preproc,
             this_image_id_mod = join_imagenet_id(this_image_id,
                                                  this_region_id)
             this_bb_mod = [0, 0, this_bb[2], this_bb[3]]
+        elif code_icorpus[this_icorpus] == 'ade_20k':
+            # somewhat regrettably, ade20k wasn't preprocessed to
+            # use our normal format. this is coming back to haunt
+            # us here, as we need to create the image id from
+            # other rows.. this will only work on ade_imgdf, not on ade_objdf
+            this_image_id_mod = (row['split'], row['image_cat'], row['filename'])
+            this_bb_mod = this_bb
+        elif code_icorpus[this_icorpus] == 'cub_birds':
+            this_image_id_mod = row['image_path']
+            this_bb_mod = this_bb
         else:
             this_image_id_mod = this_image_id
             this_bb_mod = this_bb
@@ -189,7 +209,7 @@ def compute_feats(config, bbdf, model, preproc,
             write_flag = True
             checkpts += minibatch_size
 
-        if write_flag and size_flag:
+        if write_flag and size_flag and (not args.dry_run or args.write_dummy):
             write_flag = False
             write_buffer = da.concatenate(X_out, axis=0)
             # np.savez_compressed(filename + "_" + str(write_count), write_buffer)
@@ -199,8 +219,9 @@ def compute_feats(config, bbdf, model, preproc,
                        shuffle=True, chunks=True)
             write_count += 1
             X_out = []
+
     # and back to the for loop
-    if not size_flag:
+    if not size_flag and (not args.dry_run or args.write_dummy):
         X_out = da.concatenate(X_out, axis=0)
 
         print_timestamped_message('Made it through! Writing out..', indent=4)
@@ -235,9 +256,31 @@ if __name__ == '__main__':
                         default: 100''',
                         type=int,
                         default=100)
+    parser.add_argument('--write_batch',
+                        help='''
+                        Rows after which to write out a dask array .
+                        default: 100000''',
+                        type=int,
+                        default=100000)
+    parser.add_argument('--max_singlefile',
+                        help='''
+                        Max n rows single file.
+                        default: 200000''',
+                        type=int,
+                        default=200000)
     parser.add_argument('-f', '--full_image',
                         action='store_true',
                         help='Extract whole image, ignore BBs.')
+
+    parser.add_argument('-d', '--dry_run',
+                        action='store_true',
+                        help='Don\'t actually run the extraction model')
+    parser.add_argument('--write_dummy',
+                        action='store_true',
+                        help='Write out (dummy) file even in dry_run')
+    parser.add_argument('--bbdf_slice',
+                        help='Slice of bbdf to extract, for debugging')
+
     parser.add_argument('model',
                         choices=['vgg19-fc2', 'rsn50-avg_pool', 'rsn50-flatten_1'],
                         help='''
@@ -259,8 +302,8 @@ if __name__ == '__main__':
 
     if args.bbdf_dir:
         bbdf_dir = args.bbdf_dir
-    elif config.has_option('DSGV-PATHS', 'bbdf_dir'):
-        bbdf_dir = config.get('DSGV-PATHS', 'bbdf_dir')
+    elif config.has_option('DSGV-PATHS', 'preproc_path'):
+        bbdf_dir = config.get('DSGV-PATHS', 'preproc_path')
     else:
         bbdf_dir = '../Preproc/PreprocOut'
 
@@ -276,8 +319,7 @@ if __name__ == '__main__':
 
     print(bbdf_dir, out_dir)
 
-    config.set('runtime', 'full_image', str(args.full_image))
-    if args.full_image == 'True':
+    if args.full_image:
         print("Full Image Mode Selected! Extraction will take whole image as input.")
 
     # default dimensions
@@ -287,18 +329,21 @@ if __name__ == '__main__':
     print(args.bbdf, arch, layer)
     config.set('runtime', 'model', args.model)
 
-    if arch == 'vgg19':
+    if arch == 'vgg19' and not args.dry_run:
         from keras.applications.vgg19 import VGG19
         from keras.applications.vgg19 import preprocess_input as preproc
         base_model = VGG19(weights='imagenet')
         model = Model(inputs=base_model.input,
                       outputs=base_model.get_layer(layer).output)
-    if arch == 'rsn50':
+    if arch == 'rsn50' and not args.dry_run:
         from keras.applications.resnet50 import ResNet50
         from keras.applications.resnet50 import preprocess_input as preproc
         base_model = ResNet50(weights='imagenet')
         model = Model(inputs=base_model.input,
                       outputs=base_model.get_layer(layer).output)
+    if args.dry_run:
+        model = FakeModel()
+        preproc = lambda x: x
 
     print_timestamped_message('starting to extract, using %s %s...' %
                               (arch, layer))
@@ -322,5 +367,5 @@ if __name__ == '__main__':
 
         config.set('runtime', 'this_bbdf', this_bbdf)
 
-        compute_feats(config, bbdf, model, preproc,
+        compute_feats(config, args, bbdf, model, preproc,
                       xs=xs, ys=ys, batch_size=args.size_batch)
