@@ -10,7 +10,7 @@ from __future__ import division
 import argparse
 import sys
 import configparser
-from os.path import isfile
+from os.path import exists, isfile
 
 import pandas as pd
 import numpy as np
@@ -73,8 +73,9 @@ def compute_feats(config, args, bbdf, model, preproc,
             config.get('runtime', 'model'))
     if full_image:
         filename += '-fi'
-    if isfile(filename + '.npz'):
-        print('%s exists. Will not overwrite. ABORTING.' % (filename + '.npz'))
+    # if isfile(filename + '.npz'):
+    if exists(filename) or exists(filename + '.hdf5'):
+        print('Output for %s exists. Will not overwrite. ABORTING.' % (filename))
         return
 
     X_pos = []
