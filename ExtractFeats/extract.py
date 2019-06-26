@@ -215,7 +215,7 @@ def compute_feats(config, args, bbdf, model, preproc,
             write_buffer = da.concatenate(X_out, axis=0)
             # np.savez_compressed(filename + "_" + str(write_count), write_buffer)
             da.to_hdf5(filename + "_" + str(write_count) + ".hdf5",
-                       filename, write_buffer,
+                       'img_feats', write_buffer,
                        compression="gzip", compression_opts=9,
                        shuffle=True, chunks=True)
             write_count += 1
@@ -229,7 +229,7 @@ def compute_feats(config, args, bbdf, model, preproc,
         print(X_out.shape)
 
         # np.savez_compressed(filename, X_out)
-        da.to_hdf5(filename + ".hdf5", filename, X_out,
+        da.to_hdf5(filename + ".hdf5", 'img_feats', X_out,
                    compression="gzip", compression_opts=9,
                    shuffle=True, chunks=True)
 
