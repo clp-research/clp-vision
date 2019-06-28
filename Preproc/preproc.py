@@ -965,12 +965,20 @@ class TaskFunctions(object):
         ade_basepath = config.get('ADE_20K', 'ade_base')
 
         image_paths = ade_path_data(ade_basepath+'/index_ade20k.mat')
+
         corpus_id = icorpus_code['ade_20k']
 
         part_relations = []
         ade_objects = []
         for n, (image_cat, image_id, filename) in tqdm(enumerate(image_paths)):
             if 'outliers' not in image_cat and 'misc' not in image_cat:
+                if 'training' in image_cat:
+                    this_set = 'training'
+                    this_cat = image_cat.split('training/')[1]
+                elif 'validation' in image_cat:
+                    this_set = 'validation'
+                    this_cat = image_cat.split('validation/')[1]
+
                 # print image_cat, image_id, filename
                 seg_files = glob.glob(ade_basepath+'/'+image_cat+'/'+filename+'*.png')
                 level_arrays = []
@@ -979,7 +987,7 @@ class TaskFunctions(object):
                         level_arrays.append((0, plt.imread(file)))
                     elif 'parts' in file:
                         level = re.search(r'.*parts_(.).png', file).group(1)
-                        level_arrays.append((level, plt.imread(file)))
+                        level_arrays.append((int(level), plt.imread(file)))
                 level_arrays = sorted(level_arrays, key=itemgetter(0))
                 level_masks = [(lvl, id_mask(array)) for lvl, array in level_arrays]
 
@@ -1014,15 +1022,16 @@ class TaskFunctions(object):
                                                    'part_level': int(level)})
 
                 for this_line in annotation_lines:
-                    obj_id = this_line.split(' # ')[0]
-                    level = this_line.split(' # ')[1]
-                    wn_lemmas = this_line.split(' # ')[3]
-                    label = this_line.split(' # ')[4]
-                    if this_line.split(' # ')[5] != "":
-                        attrs = this_line.split(' # ')[5].strip('\"')
+                    this_line_split = this_line.split(' # ')
+                    obj_id = this_line_split[0]
+                    level = this_line_split[1]
+                    wn_synset = this_line_split[3]
+                    label = this_line_split[4]
+                    if this_line_split[5] != "":
+                        attrs = this_line_split[5].strip('\"')
                     else:
                         attrs = False
-                    if this_line.split(' # ')[2] == '0':
+                    if this_line_split[2] == '0':
                         occl = False
                     else:
                         occl = True
@@ -1032,20 +1041,24 @@ class TaskFunctions(object):
                     # print obj_id, level, bb, image_id, label, wn_lemmas
                     ade_objects.append({'i_corpus': corpus_id,
                                         'image_id': image_id,
-                                        'level': level,
                                         'region_id': obj_id,
-                                        'bb': bb,
+                                        'level': level,
                                         'label': label,
-                                        'lemmas': wn_lemmas,
+                                        'synset': wn_synset,
                                         'attr': attrs,
-                                        'occl': occl})
+                                        'occl': occl,
+                                        'bb': bb,
+                                        'filename': filename+'.jpg',
+                                        'image_cat': this_cat,
+                                        'split': this_set
+                                        })
 
         rel_columns = 'i_corpus image_id region_id region_level part_id part_level'.split()
         relations_df = pd.DataFrame(part_relations)
         relations_df = relations_df[rel_columns]
         self._dumpDF(relations_df, args.out_dir + '/ade_reldf.json', args)
 
-        obj_columns = 'i_corpus image_id region_id level label synset attr occl bb'.split()
+        obj_columns = 'i_corpus image_id region_id level label synset attr occl bb image_cat split filename'.split()
         objects_df = pd.DataFrame(ade_objects)
         objects_df = objects_df[obj_columns]
         self._dumpDF(objects_df, args.out_dir + '/ade_objdf.json', args)
