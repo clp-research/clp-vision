@@ -156,10 +156,14 @@ def compute_feats(config, args, bbdf, model, preproc,
                 (code_icorpus[this_icorpus], this_image_id, str(this_bb_mod)))
             continue
 
-        (prev_iid, prev_img), img_resized = \
+        try:
+            (prev_iid, prev_img), img_resized = \
             get_image_part(config, (prev_iid, prev_img),
-                           this_icorpus, this_image_id_mod, this_bb,
+                           this_icorpus, this_image_id_mod, this_bb_mod,
                            xs=xs, ys=ys)
+        except ValueError as e:
+            print('skipping over this image (%s,%d). corrupted??' % \
+               (code_icorpus[this_icorpus], this_image_id))
 
         if len(prev_img.shape) != 3 or \
            (len(prev_img.shape) == 3 and prev_img.shape[2] != 3):
