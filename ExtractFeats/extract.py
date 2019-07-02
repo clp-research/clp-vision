@@ -10,12 +10,13 @@ from __future__ import division
 import argparse
 import sys
 import configparser
-from os.path import exists, isfile
+from os.path import isfile
 from glob import glob
 
 import pandas as pd
 import numpy as np
 import dask.array as da
+import h5py
 
 from tqdm import tqdm
 
@@ -76,7 +77,6 @@ def compute_feats(config, args, bbdf, model, preproc,
         filename += '-fi'
     # if isfile(filename + '.npz'):
     if len(glob(filename + '*')) != 0:
-    #if exists(filename) or exists(filename + '.hdf5'):
         print('Output for %s exists. Will not overwrite. ABORTING.' % (filename))
         return
 
@@ -218,26 +218,33 @@ def compute_feats(config, args, bbdf, model, preproc,
 
         if write_flag and size_flag and (not args.dry_run or args.write_dummy):
             write_flag = False
-            write_buffer = da.concatenate(X_out, axis=0)
+
+            write_buffer = np.concatenate(X_out, axis=0)
             # np.savez_compressed(filename + "_" + str(write_count), write_buffer)
-            da.to_hdf5(filename + "_" + str(write_count) + ".hdf5",
-                       'img_feats', write_buffer,
-                       compression="gzip", compression_opts=9,
-                       shuffle=True, chunks=True)
+            # uncompressed hdf5, after all?
+            outfilename = filename + "_" + str(write_count) + ".hdf5"
+            with h5py.File(outfilename, 'w') as f:
+                f.create_dataset('img_feats', data=write_buffer)
+
+            # write_buffer = da.concatenate(X_out, axis=0)
+            # da.to_hdf5(filename + "_" + str(write_count) + ".hdf5",
+            #            'img_feats', write_buffer,
+            #            compression="gzip", compression_opts=9,
+            #            shuffle=True, chunks=True)
+
             write_count += 1
             X_out = []
 
     # and back to the for loop
     if not size_flag and (not args.dry_run or args.write_dummy):
-        X_out = da.concatenate(X_out, axis=0)
+        # X_out = da.concatenate(X_out, axis=0)
+        X_out = np.concatenate(X_out, axis=0)
 
         print_timestamped_message('Made it through! Writing out..', indent=4)
         print(X_out.shape)
 
-        # np.savez_compressed(filename, X_out)
-        da.to_hdf5(filename + ".hdf5", 'img_feats', X_out,
-                   compression="gzip", compression_opts=9,
-                   shuffle=True, chunks=True)
+        with h5py.File(filename + '.hdf5', 'w') as f:
+            f.create_dataset('img_feats', data=X_out)
 
 
 # ======== MAIN =========
