@@ -11,6 +11,7 @@ import argparse
 import sys
 import configparser
 from os.path import exists, isfile
+from glob import glob
 
 import pandas as pd
 import numpy as np
@@ -74,7 +75,8 @@ def compute_feats(config, args, bbdf, model, preproc,
     if full_image:
         filename += '-fi'
     # if isfile(filename + '.npz'):
-    if exists(filename) or exists(filename + '.hdf5'):
+    if len(glob(filename + '*')) != 0:
+    #if exists(filename) or exists(filename + '.hdf5'):
         print('Output for %s exists. Will not overwrite. ABORTING.' % (filename))
         return
 
