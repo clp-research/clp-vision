@@ -352,9 +352,10 @@ if __name__ == '__main__':
     if arch == 'rsn50' and not args.dry_run:
         from keras.applications.resnet50 import ResNet50
         from keras.applications.resnet50 import preprocess_input as preproc
-        base_model = ResNet50(weights='imagenet')
-        model = Model(inputs=base_model.input,
-                      outputs=base_model.get_layer(layer).output)
+        # base_model = ResNet50(weights='imagenet')
+        model = ResNet50(weights='imagenet', include_top=False)
+        # model = Model(inputs=base_model.input,
+        #               outputs=base_model.get_layer(layer).output)
     if args.dry_run:
         model = FakeModel()
         preproc = lambda x: x
