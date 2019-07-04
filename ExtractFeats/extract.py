@@ -296,7 +296,7 @@ if __name__ == '__main__':
                         help='Slice of bbdf to extract, for debugging')
 
     parser.add_argument('model',
-                        choices=['vgg19-fc2', 'rsn50-avg_pool', 'rsn50-flatten_1'],
+                        choices=['vgg19-fc2', 'rsn50-max'],
                         help='''
                         Which model/layer to use for extraction.''')
     parser.add_argument('bbdf',
