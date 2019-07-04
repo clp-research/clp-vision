@@ -353,7 +353,7 @@ if __name__ == '__main__':
         from keras.applications.resnet50 import ResNet50
         from keras.applications.resnet50 import preprocess_input as preproc
         # base_model = ResNet50(weights='imagenet')
-        model = ResNet50(weights='imagenet', include_top=False)
+        model = ResNet50(weights='imagenet', include_top=False, pooling=layer)
         # model = Model(inputs=base_model.input,
         #               outputs=base_model.get_layer(layer).output)
     if args.dry_run:
