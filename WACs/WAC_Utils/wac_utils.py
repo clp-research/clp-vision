@@ -30,8 +30,13 @@ RELWORDS = ['below',
 
 
 def filter_X_by_filelist(X, filelist):
-    tmp_df = pd.DataFrame(X)
-    return np.array(tmp_df[tmp_df.iloc[:, 1].isin(filelist)])
+    if type(X) == np.ndarray:
+        tmp_df = pd.DataFrame(X)
+        return np.array(tmp_df[tmp_df.iloc[:, 1].isin(filelist)])
+    else:  # assume that X is a dask array
+        image_id_list = X[:, 1].compute()
+        train_mask = np.isin(image_id_list, filelist)
+        return X[train_mask]
 
 
 def filter_refdf_by_filelist(refdf, filelist):
@@ -74,7 +79,10 @@ def create_word2den(refdf, refcol='refexp', regcol='region_id'):
 
 def make_X_id_index(X, id_feats=ID_FEATS):
     '''Map ID_FEATS from matrix to index into matrix, for faster access'''
-    return dict(zip([tuple(e) for e in X[:, :id_feats].astype(int).tolist()], range(len(X))))
+    if type(X) == np.ndarray:
+        return dict(zip([tuple(e) for e in X[:, :id_feats].astype(int).tolist()], range(len(X))))
+    else:  # assume that it is a dask array
+        return dict(zip([tuple(e) for e in X[:, :id_feats].compute().astype(int).tolist()], range(len(X))))
 
 
 def make_mask_matrix(X, X_idx, word2den, wordlist):
@@ -107,12 +115,15 @@ def get_X_for_word(X, word2den, mask_matrix, word, neg_max=20000):
     Keyword Arguments:
     - neg_max  -- if 0, no negative instances. If 'balanced', as many as positive. If positive n, capped at that number. If None, no limit.
     '''
+
+    dask_flag = 0 if type(X) == np.ndarray else 1
+
     if word not in word2den:
         # raise ValueError("No mask available for this word! (%s)" % (word))
         print("Error!! No mask available for this word! (%s)" % (word))
         return None
     this_mask = mask_matrix[list(word2den.keys()).index(word)]
-    X_pos = X[this_mask, ID_FEATS:]
+    X_pos = X[this_mask, ID_FEATS:] if not dask_flag else X[this_mask, ID_FEATS:].compute()
     y_pos = np.ones(len(X_pos), dtype=int)
 
     if neg_max == 0:
@@ -123,7 +134,10 @@ def get_X_for_word(X, word2den, mask_matrix, word, neg_max=20000):
 
     neg_indx = np.arange(mask_matrix.shape[1])[~this_mask]
     np.random.shuffle(neg_indx)
-    X_neg = X[neg_indx[:neg_max], ID_FEATS:]
+    neg_indx = neg_indx[:neg_max]
+    neg_indx = np.sort(neg_indx)   # for performance reasons, makes dask access faster
+
+    X_neg = X[neg_indx, ID_FEATS:] if not dask_flag else X[neg_indx, ID_FEATS:]
     y_neg = np.zeros(len(X_neg), dtype=int)
 
     X_out = np.concatenate([X_pos, X_neg], axis=0)
