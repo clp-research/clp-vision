@@ -100,7 +100,7 @@ def make_mask_matrix(X, X_idx, word2den, wordlist):
 
     mask_matrix = []
     for this_word in wordlist:
-        this_word_vec = np.zeros(len(X))
+        this_word_vec = np.zeros(len(X), dtype=np.bool)
         if this_word in word2den:
             this_word_vec[[X_idx[i] for i in word2den[this_word] if i in X_idx]] = 1
         mask_matrix.append(this_word_vec)
