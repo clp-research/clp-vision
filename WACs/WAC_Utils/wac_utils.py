@@ -10,6 +10,7 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
+from itertools import permutations
 
 # The first features in the image feature Xs encode the region ID
 ID_FEATS = 3
@@ -126,18 +127,22 @@ def get_X_for_word(X, word2den, mask_matrix, word, neg_max=20000):
     X_pos = X[this_mask, ID_FEATS:] if not dask_flag else X[this_mask, ID_FEATS:].compute()
     y_pos = np.ones(len(X_pos), dtype=int)
 
-    if neg_max == 0:
-        return X_pos, y_pos
+    # print('made it here!', X_pos.shape)
 
-    if neg_max == 'balanced':
-        neg_max = len(y_pos)
+    if type(neg_max) is int or type(neg_max) is str:
+        if neg_max == 0:
+            return X_pos, y_pos
 
-    neg_indx = np.arange(mask_matrix.shape[1])[~this_mask]
-    np.random.shuffle(neg_indx)
-    neg_indx = neg_indx[:neg_max]
-    neg_indx = np.sort(neg_indx)   # for performance reasons, makes dask access faster
+        if neg_max == 'balanced':
+            neg_max = len(y_pos)
 
-    X_neg = X[neg_indx, ID_FEATS:] if not dask_flag else X[neg_indx, ID_FEATS:]
+        neg_indx = np.arange(mask_matrix.shape[1])[~this_mask]
+        np.random.shuffle(neg_indx)
+        neg_indx = neg_indx[:neg_max]
+        neg_indx = np.sort(neg_indx)   # for performance reasons, makes dask access faster
+        X_neg = X[neg_indx, ID_FEATS:] if not dask_flag else X[neg_indx, ID_FEATS:].compute()
+    else:
+        X_neg = neg_max  # pass in X_neg from outside...
     y_neg = np.zeros(len(X_neg), dtype=int)
 
     X_out = np.concatenate([X_pos, X_neg], axis=0)
@@ -156,3 +161,140 @@ def train_this_word(X, word2den, mask_matrix, neg_max,
     classifier = classifier(**classf_params)
     this_wac = classifier.fit(X_this_w, y_this_w)
     return (this_word, y_this_w.sum(), len(X_this_w), this_wac)
+
+
+def make_X_img_index(X, image_id_idx=1):
+    '''Gets position in X for each image ID / map from imageID to list of indices.
+
+    Goes through X and adds current row to list for current image.
+    '''
+    X_image_index = defaultdict(list)
+    for image_id, index in zip(X[:, image_id_idx], np.arange(len(X))):
+        X_image_index[int(image_id)].append(index)
+    return X_image_index
+
+
+def make_Xneg_pairs(X_img_idx):
+    '''Gets all pairs of index positions, for objects from the same image.'''
+    Xneg_pairs = []
+    for _image_id, object_ids in list(X_img_idx.items()):
+        Xneg_pairs.extend(permutations(object_ids, 2))
+    return Xneg_pairs
+
+
+def get_X_for_rel(X, X_idx, Xnegpairs, r2d, rel, neg_min=20000, neg_factor=10, ffunc=lambda x: x):
+    Xout = []
+    not_available = 0
+
+    for argA, argB in r2d[rel]:
+        # print(argA, argB)
+        # print(X[X_idx[argA], ID_FEATS:])
+        try:
+            Xout.append((ffunc(np.concatenate([X[X_idx[argA], ID_FEATS:], X[X_idx[argB], ID_FEATS:]]))))
+        except:
+            # print('pair not in index??', argA, argB)
+            not_available += 1
+            continue
+    # print('for %d (of %d = %.2f%%) pairs, features were not available...' % (not_available,
+    #                                                                       len(r2d[rel]),
+    #                                                                       not_available / len(r2d[rel]) * 100))
+    Ypos = np.ones(len(Xout))
+    if neg_min == 0:
+        return np.vstack(Xout), Ypos
+    if neg_min == 'balanced':
+        n_neg = len(Xout)
+    else:
+        n_neg = max(neg_min, min(len(Xout) * neg_factor, int(len(X) / neg_factor)))
+
+    this_Xnegpairs = [Xnegpairs[i] for i in np.random.randint(len(Xnegpairs), size=n_neg)]
+    Xneg = np.vstack([ffunc(np.concatenate([X[argA, ID_FEATS:],
+                                            X[argB, ID_FEATS:]])) for argA, argB in this_Xnegpairs])
+
+    # TODO: could hard-code potentially more informative features, like IoU, distance of centroids, angle
+    #   polar coordinates...
+    # TODO: could also sample (some) negative instances from pairs of other relations...
+    #  more informative?
+
+    Yneg = np.zeros(len(Xneg))
+
+    thisX_full, thisY_full = shuffle(np.concatenate([Xout, Xneg]), np.concatenate([Ypos, Yneg]))
+
+    return thisX_full, thisY_full
+
+
+def intersectbb(bb1, bb2):
+    x1, y1, w1, h1 = bb1
+    x2, y2, w2, h2 = bb2
+    if x1 <= x2:
+        w = x1 + w1 - x2
+        if x2 + w2 < x1 + w1:
+            w -= x1+w1 - (x2+w2)
+    else:
+        w = x2 + w2 - x1
+        if x2+w2 > x1+w1:
+            w -= x2+w2 - (x1+w1)
+
+    if y1 <= y2:
+        h = y1 + h1 - y2
+        if y2+h2 < y2+h1:
+            h -= y1+h1 - (y2+h2)
+    else:
+        h = y2 + h2 - y1
+        if y2+h2 > y1+h1:
+            h -= y2+h2 - (y1+h1)
+    if np.min([w, h]) < 0:
+        inter = 0
+    else:
+        inter = w * h
+    return inter
+
+
+def intoveru(bb1, bb2):
+    x1, y1, w1, h1 = bb1
+    x2, y2, w2, h2 = bb2
+    inter = intersectbb(bb1, bb2)
+    union = w1 * h1 + w2 * h2 - inter
+    # print bb1, bb2, inter / union
+    # return inter, union, inter / union
+    return inter / union
+
+
+def center_point(x1, y1, x2, y2):
+    return (x2-x1)/2, (y2-y1)/2
+
+
+def dist_angle(pA, pB):
+    (xA, yA), (xB, yB) = pA, pB
+    w = xB - xA
+    h = yB - yA
+    dist = np.sqrt(w**2 + h**2)
+    # angle = np.arcsin(w/dist)
+    angle = np.arctan2(w, h)
+    return dist, angle
+
+
+def train_this_relation(X, X_idx, Xnegpairs, r2d,
+                        neg_min, neg_factor, classifier, classf_params,
+                        this_rel, ffunc=lambda x: x):
+    thisX, thisY = get_X_for_rel(X, X_idx, Xnegpairs, r2d, this_rel,
+                                 neg_min, neg_factor, ffunc=ffunc)
+    if not len(thisX):
+        print('can not train this word, no training data', this_rel)
+        return (None, None, None, None)
+
+    this_wac = classifier(**classf_params)
+    this_wac.fit(thisX, thisY)
+
+    # print(this_rel, this_wac.score(thisX, thisY))
+
+    return (this_rel, thisY.sum(), len(thisX), this_wac)
+
+
+def ffunc_ext(vector):
+    x1rA, y1rA, x2rA, y2rA, areaA, ratioA, distanceA = vector[:7]
+    x1rB, y1rB, x2rB, y2rB, areaB, ratioB, distanceB = vector[7:]
+    # print(x1rA)
+    iou = intoveru([x1rA, y1rA, x2rA-x1rA, y2rA-y1rA], [x1rB, y1rB, x2rB-x1rB, y2rB-y1rB])
+    dist, angle = dist_angle(center_point(x1rA, y1rA, x2rA, y2rA), center_point(x1rB, y1rB, x2rB, y2rB))
+    return np.array([x1rA, y1rA, x2rA, y2rA, x1rB, y1rB, x2rB, y2rB,
+                     areaA, distanceA, areaB, distanceB, iou, dist, angle])
