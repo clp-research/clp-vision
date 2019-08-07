@@ -2,6 +2,8 @@
 from __future__ import division
 import os
 import datetime
+import json
+from collections import defaultdict
 import scipy.io as spio
 import pandas as pd
 import numpy as np
@@ -40,6 +42,15 @@ def load_vg_split(path_prefix, split):
     path = path_prefix + '/' + split + '.txt'
     vgdf = pd.read_csv(path, sep=' ', names='file mask'.split())
     return [int(e.split('/')[1].split('.')[0]) for e in vgdf['file'].tolist()]
+
+
+def load_f30k_splits(path):
+    with open(path, 'r') as f:
+        fjson = json.load(f)
+    fsplits = defaultdict(list)
+    for this_image in fjson['images']:
+        fsplits[this_image['split']].append(int(this_image['filename'].split('.')[0]))
+    return fsplits
 
 
 def saiapr_basepath(image_id):
