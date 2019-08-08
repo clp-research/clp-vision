@@ -78,12 +78,25 @@ def create_word2den(refdf, refcol='refexp', regcol='region_id'):
     return {k: list(set(v)) for k, v in word2den.items()}
 
 
-def make_X_id_index(X, id_feats=ID_FEATS):
+def make_X_id_index(X, id_feats=ID_FEATS, cast_to_int=True):
     '''Map ID_FEATS from matrix to index into matrix, for faster access'''
-    if type(X) == np.ndarray:
-        return dict(zip([tuple(e) for e in X[:, :id_feats].astype(int).tolist()], range(len(X))))
-    else:  # assume that it is a dask array
-        return dict(zip([tuple(e) for e in X[:, :id_feats].compute().astype(int).tolist()], range(len(X))))
+
+    # 2019-08-07: pretty inelegant, but an np.array can only have
+    # one type, and for corpora where there are subregions,
+    # we need to have the region id as float...
+    # I don't want to test which is the case here, and I also didn't want
+    # to change this completely, as this may have negative consequences
+    # for old code which may rely on the keys being integers...
+    if cast_to_int:
+        if type(X) == np.ndarray:
+            return dict(zip([tuple(e) for e in X[:, :id_feats].astype(int).tolist()], range(len(X))))
+        else:  # assume that it is a dask array
+            return dict(zip([tuple(e) for e in X[:, :id_feats].compute().astype(int).tolist()], range(len(X))))
+    else:
+        if type(X) == np.ndarray:
+            return dict(zip([tuple(e) for e in X[:, :id_feats].tolist()], range(len(X))))
+        else:  # assume that it is a dask array
+            return dict(zip([tuple(e) for e in X[:, :id_feats].compute().tolist()], range(len(X))))
 
 
 def make_mask_matrix(X, X_idx, word2den, wordlist):
