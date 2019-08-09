@@ -113,6 +113,10 @@ def compute_feats(config, args, bbdf, model, preproc,
         reg_col = 'obj_id'
     if 'subregion_id' in bbdf.columns:  # Flickr30k
         subreg = True
+        subreg_column = 'subregion_id'
+    elif 'level' in bbdf.columns:  # ADE20k
+        subreg = True
+        subreg_column = 'level'
     else:
         subreg = False
 
@@ -128,7 +132,8 @@ def compute_feats(config, args, bbdf, model, preproc,
             this_region_id = row[reg_col]
 
         if subreg:  # this means that we are reading in Flickr30k...
-            this_region_id = row[reg_col] + row['subregion_id'] / 100
+            # .. or ADE20k
+            this_region_id = row[reg_col] + row[subreg_column] / 100
 
         #  When extracting feats for imagenet regions, must
         #  - create combined filename out of image_id and region_id
