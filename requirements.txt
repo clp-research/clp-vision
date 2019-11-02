@@ -5,7 +5,7 @@ tqdm==4.31.1
 scipy==1.2.1
 numpy==1.16.2
 ipython==7.4.0
-Pillow==6.0.0
+Pillow==6.2.0
 annoy==1.15.2
 protobuf==3.7.1
 ijson==2.3
