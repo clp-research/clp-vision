@@ -12,5 +12,5 @@ ijson==2.3
 joblib==0.13.2
 keras==2.2.4
 scikit_learn==0.20.3
-tensorflow==1.15.0
+tensorflow==1.15.2
 tensorflow_hub==0.4.0
