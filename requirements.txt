@@ -3,7 +3,7 @@ pandas==0.24.2
 matplotlib==2.2.3
 tqdm==4.31.1
 scipy==1.2.1
-numpy==1.21.0
+numpy==1.22.0
 ipython==7.16.3
 Pillow==9.0.0
 annoy==1.15.2
