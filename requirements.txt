@@ -7,7 +7,7 @@ numpy==1.21.0
 ipython==7.16.3
 Pillow==9.0.0
 annoy==1.15.2
-protobuf==3.7.1
+protobuf==3.18.3
 ijson==2.3
 joblib==0.13.2
 keras==2.2.4
