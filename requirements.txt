@@ -9,7 +9,7 @@ Pillow==9.0.0
 annoy==1.15.2
 protobuf==3.7.1
 ijson==2.3
-joblib==0.13.2
+joblib==1.2.0
 keras==2.2.4
 scikit_learn==0.20.3
 tensorflow==2.5.3
